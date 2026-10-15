@@ -1,6 +1,6 @@
 # 轻卷截图
 
-面向 iOS 18 的原生滚动长截图应用。目标手机是 iPhone 16 Pro / iOS 18.7.8；当前为等待真机验收的 0.1.0 预览版。
+面向 iOS 18 的原生滚动长截图应用。目标手机是 iPhone 16 Pro / iOS 18.7.8；当前为等待真机验收的 0.1.1 预览版。
 
 ## 两个安装包
 
@@ -12,6 +12,12 @@
 CI 产生的 IPA 使用 ad-hoc 签名以保留包结构，**需要用有效证书重新签名才能安装到真实 iPhone**。它们不是 App Store 或 TestFlight 安装包。
 
 使用全能签时，若当前描述文件不能提供 App Groups，请使用 Import 版。具体操作见 [中文签名与使用说明](docs/全能签安装.md)。
+
+## 0.1.1 签名兼容修复
+
+标准版会读取主程序和录屏扩展各自描述文件中的共享组元数据，优先使用构建组，其次按固定顺序选择双方共同授权且系统允许当前进程访问的组。应用不会因为修改配置就获得额外权限。元数据读取不代替签名验证，容器访问仍由系统检查。
+
+录屏按钮使用安装包内实际扩展标识；缺少扩展或标识不匹配时，“采集检查”会显示具体情况。共享组适配通过也不代表系统已在控制中心接受该扩展，仍需真实手机验证。
 
 ## 已实现
 
@@ -42,7 +48,7 @@ bash scripts/build.sh
 bash scripts/simulator-smoke.sh
 ```
 
-输出位于 `build/ScrollShot-standard-0.1.0.ipa`、`build/ScrollShot-import-0.1.0.ipa`。`APP_GROUP_ID` 可在构建前设置，必须与实际签名授权一致。
+输出位于 `build/ScrollShot-standard-0.1.1.ipa`、`build/ScrollShot-import-0.1.1.ipa`。`APP_GROUP_ID` 可在构建前设置，必须与实际签名授权一致。
 
 ## 结构
 

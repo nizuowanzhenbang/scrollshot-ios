@@ -33,9 +33,6 @@ jobs:
         run: bash scripts/build.sh
       - name: Negative package checks
         run: python3 -m unittest discover -s scripts -p test_verify_ipa.py -v
-      - name: Simulator smoke test
-        shell: bash
-        run: bash scripts/simulator-smoke.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -45,7 +42,17 @@ jobs:
             build/*-verification.json
             build/*-build.log
             build/SHA256SUMS.txt
+          retention-days: 3
+      - name: Simulator smoke test
+        shell: bash
+        run: bash scripts/simulator-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-evidence
+          path: |
             build/*-screen.png
             build/simulator-*.json
+            build/simulator-build.log
             build/simulator-launch.log
           retention-days: 3

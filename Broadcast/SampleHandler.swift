@@ -7,11 +7,11 @@ final class SampleHandler: RPBroadcastSampleHandler {
     private var pipeline: CapturePipeline?
     override func broadcastStarted(withSetupInfo setupInfo: [String : NSObject]?) {
         do {
-            guard let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String,
-                  let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
-                throw ScrollShotError.unavailable("共享权限不可用。请检查主程序和录屏扩展签名，或使用录屏导入版。")
+            let access = CaptureAccess.inspect(bundleURL: Bundle.main.bundleURL) {FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0)}
+            guard let container = access.container else {
+                throw ScrollShotError.unavailable(access.diagnostics)
             }
-            pipeline = try CapturePipeline(store: SessionStore(root: container.appendingPathComponent("Drafts",isDirectory: true)))
+            pipeline = try CapturePipeline(store: SessionStore(root: container.drafts))
         } catch { stop(error) }
     }
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer,with sampleBufferType: RPSampleBufferType) {

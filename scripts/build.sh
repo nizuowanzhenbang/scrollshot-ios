@@ -25,7 +25,8 @@ for scheme in ScrollShot ScrollShotImport; do
     codesign --force --sign - --timestamp=none "$app"
   fi
   codesign --verify --deep --strict "$app"
-  artifact="$PWD/build/ScrollShot-$mode-0.1.0.ipa"
+  version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Info.plist")"
+  artifact="$PWD/build/ScrollShot-$mode-$version.ipa"
   (cd "$staging" && zip -qry "$artifact" Payload)
   python3 scripts/verify_ipa.py "$artifact" --mode "$mode" >"build/$mode-verification.json"
 done

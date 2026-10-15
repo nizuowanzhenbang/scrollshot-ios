@@ -13,28 +13,33 @@ import ScrollShotCore
     let store: SessionStore
     let captureReady: Bool
     let captureExplanation: String
+    let captureExtensionIdentifier: String?
+    let captureDiagnostics: String
     private var operation: Task<Void,Never>?
     private var attempted: Set<UUID> = []
     init() {
         let documents = FileManager.default.urls(for: .documentDirectory,in: .userDomainMask)[0]
         var root = documents.appendingPathComponent("Drafts",isDirectory: true)
+        var ready = false,explanation = "从相册或文件导入系统录屏，在本机生成长图。",diagnostics = "导入版不包含录屏扩展。"
         #if IMPORT_ONLY
-        captureReady = false
-        captureExplanation = "从相册或文件导入系统录屏，在本机生成长图。"
+        captureExtensionIdentifier = nil
         #else
-        if let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String,
-           let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) {
-            root = container.appendingPathComponent("Drafts",isDirectory: true)
-            captureReady = true; captureExplanation = "开始后切到目标 App 匀速向下滚动，停止录屏后返回。"
+        let access = CaptureAccess.inspect(bundleURL: Bundle.main.bundleURL) {FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0)}
+        captureExtensionIdentifier = access.extensionIdentifier;diagnostics = access.diagnostics
+        if let container = access.container {
+            root = container.drafts;ready = true
+            explanation = "点击录屏按钮，按系统提示开始后切到目标 App 匀速滚动；停止后返回。"
         } else {
-            captureReady = false; captureExplanation = "共享权限自检未通过。可先导入录屏，或安装不带共享权限的导入版。"
+            explanation = access.extensionIdentifier == nil ? "录屏扩展缺失。请在全能签中保留插件并重新签名。" : "共享权限自检未通过。请查看采集检查，或先导入系统录屏。"
         }
         #endif
         do { store = try SessionStore(root: root) }
         catch {
             // A writable app-local fallback keeps imported drafts usable.
             store = try! SessionStore(root: documents.appendingPathComponent("LocalDrafts",isDirectory: true))
+            ready = false;explanation = "共享草稿目录无法写入，暂时可导入录屏。";diagnostics += "\n草稿目录创建失败：\(error.localizedDescription)"
         }
+        captureReady = ready;captureExplanation = explanation;captureDiagnostics = diagnostics
         refresh()
     }
     func refresh() { do { sessions = try store.all() } catch { message = error.localizedDescription } }

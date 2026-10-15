@@ -9,13 +9,14 @@ import ScrollShotCore
 #if !IMPORT_ONLY
 import ReplayKit
 struct BroadcastButton: UIViewRepresentable {
+    let extensionIdentifier: String
     func makeUIView(context: Context) -> RPSystemBroadcastPickerView {
         let view = RPSystemBroadcastPickerView(frame: CGRect(x: 0,y: 0,width: 60,height: 60))
-        view.preferredExtension = Bundle.main.object(forInfoDictionaryKey: "BroadcastExtensionIdentifier") as? String
+        view.preferredExtension = extensionIdentifier
         view.showsMicrophoneButton = false
         return view
     }
-    func updateUIView(_ uiView: RPSystemBroadcastPickerView,context: Context) {}
+    func updateUIView(_ uiView: RPSystemBroadcastPickerView,context: Context) {uiView.preferredExtension = extensionIdentifier}
 }
 #endif
 struct ImportedMovie: Transferable {

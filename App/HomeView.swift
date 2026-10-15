@@ -22,11 +22,12 @@ struct HomeView: View {
                     }.padding(.vertical,10)
                     #if !IMPORT_ONLY
                     HStack(spacing: 16) {
-                        if model.captureReady { BroadcastButton().frame(width: 60,height: 60).disabled(model.busy) }
+                        if model.captureReady,let identifier = model.captureExtensionIdentifier { BroadcastButton(extensionIdentifier: identifier).frame(width: 60,height: 60).disabled(model.busy) }
                         else { Image(systemName: "exclamationmark.circle").font(.largeTitle).foregroundStyle(.orange) }
                         VStack(alignment: .leading,spacing: 6) {
                             Text(model.captureReady ? "开始滚动截图" : "共享权限需要检查").font(.headline)
                             Text(model.captureExplanation).font(.caption).foregroundStyle(.secondary)
+                            Button("采集检查"){model.message = model.captureDiagnostics}.font(.caption)
                         }
                     }.padding(18).background(.background,in: RoundedRectangle(cornerRadius: 22))
                     #endif
