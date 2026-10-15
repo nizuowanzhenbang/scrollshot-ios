@@ -10,7 +10,9 @@ public final class RecordingSession: @unchecked Sendable {
     private let onStop: @Sendable(RecordingStop)->Void
     public init(store: SessionStore,preferences: CapturePreferences,onStop: @escaping @Sendable(RecordingStop)->Void) throws {
         let preferences = try preferences.validated(),pipeline = try CapturePipeline(store: store)
-        self.pipeline = pipeline;id = pipeline.manifest.id;detector = IdleStopDetector(preferences: preferences);self.onStop = onStop
+        var detectionPreferences = preferences
+        detectionPreferences.idleSeconds = preferences.effectiveIdleSeconds
+        self.pipeline = pipeline;id = pipeline.manifest.id;detector = IdleStopDetector(preferences: detectionPreferences);self.onStop = onStop
         if preferences.idleStopEnabled {
             let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
             self.timer = timer

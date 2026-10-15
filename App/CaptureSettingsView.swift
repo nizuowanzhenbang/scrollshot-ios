@@ -21,7 +21,7 @@ struct CaptureSettingsView: View {
                     if model.saveCapturePreferences(enabled: enabled,seconds: seconds) {saved = true;editingSeconds = false}
                 }.buttonStyle(.bordered).accessibilityIdentifier("settings.save")
             }.font(.subheadline)
-            Text(saved ? "已保存，下次录屏生效。" : "支持任意正数和小数。首次识别到画面滚动后开始计时，修改在下次录屏生效。")
+            Text(saved ? "已保存，下次录屏生效；小于 0.3 秒按 0.3 秒检测。" : "支持任意正数和小数；小于 0.3 秒按 0.3 秒检测。首次识别到画面滚动后计时，修改在下次录屏生效。")
                 .font(.caption).foregroundStyle(saved ? Color.green : Color.secondary)
         }.padding(18).background(.background,in: RoundedRectangle(cornerRadius: 22)).disabled(!model.captureReady)
         .onAppear {enabled = model.capturePreferences.idleStopEnabled;seconds = String(model.capturePreferences.idleSeconds)}

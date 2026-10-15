@@ -49,6 +49,7 @@ jobs:
             build/SHA256SUMS.txt
           retention-days: 3
       - name: Simulator smoke test
+        timeout-minutes: 15
         shell: bash
         run: bash scripts/simulator-smoke.sh
       - uses: actions/upload-artifact@v4

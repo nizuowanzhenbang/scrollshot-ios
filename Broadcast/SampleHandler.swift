@@ -15,7 +15,7 @@ final class SampleHandler: RPBroadcastSampleHandler {
             recording = try RecordingSession(store: SessionStore(root: container.drafts),preferences: preferences) {[weak self] completion in
                 let text: String,code: Int
                 switch completion {
-                case .idle:text = "已停滑 \(preferences.idleSeconds) 秒，截图已完成。返回轻卷截图查看。";code = 0
+                case .idle:text = "已停滑 \(preferences.effectiveIdleSeconds) 秒，截图已完成。返回轻卷截图查看。";code = 0
                 case .failed(let message):text = message;code = 1
                 }
                 self?.finishBroadcastWithError(NSError(domain: "ScrollShot.Recording",code: code,userInfo: [NSLocalizedDescriptionKey:text]))
