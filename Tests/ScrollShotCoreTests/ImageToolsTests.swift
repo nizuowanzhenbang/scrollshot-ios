@@ -3,6 +3,34 @@ import ImageIO
 import CoreGraphics
 @testable import ScrollShotCore
 final class ImageToolsTests: XCTestCase {
+    func testToolSettingsPersistAndInvalidThresholdCannotReplaceThem() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let store=ToolPreferencesStore(root:root)
+        XCTAssertEqual(try store.load().compressionPromptMB,20)
+        var prefs=ToolPreferences();prefs.smartScrollbar=false;prefs.haptics=false;prefs.compressionPromptMB=33.5
+        try store.save(prefs);XCTAssertEqual(try store.load(),prefs)
+        for invalid in [0.0,-1,.nan,.infinity] {var bad=prefs;bad.compressionPromptMB=invalid;XCTAssertThrowsError(try store.save(bad))}
+        XCTAssertEqual(try store.load(),prefs)
+    }
+    func testCompressionProducesSmallerBoundedCopiesAndKeepsPNG() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let store=try SessionStore(root:root);var session=try store.create();session.state = .ready
+        let dir=store.directory(for:session.id),url=dir.appendingPathComponent("original.png")
+        let w=120,h=1000,writer=try PNGWriter(url:url,width:w,height:h)
+        var seed:UInt64=123
+        for _ in 0..<h {var data=Data();for _ in 0..<w {seed=seed &* 6364136223846793005 &+ 1;let v=UInt8(truncatingIfNeeded:seed>>32);data.append(contentsOf:[v,v,v,255])};try writer.append(rgba:data,rowCount:1)}
+        try writer.finish();session.outputs=["original.png"]
+        session.renderedTiles=[FrameRecord(fileName:"original.png",width:w,height:h,offsetY:0,timestamp:0)]
+        try store.save(session)
+        let result=try CompressionService.generate(id:session.id,store:store,maxWidth:60,maxHeight:250,quality:0.7)
+        let names=try XCTUnwrap(result.compressedOutputs);XCTAssertEqual(names.count,2)
+        var total=0
+        for name in names {let path=dir.appendingPathComponent(name),image=try FrameImaging.load(path);XCTAssertEqual(image.width,60);XCTAssertLessThanOrEqual(image.height,250);total += try Data(contentsOf:path).count}
+        XCTAssertLessThan(total,try Data(contentsOf:url).count)
+        XCTAssertEqual(result.outputs,["original.png"]);XCTAssertTrue(FileManager.default.fileExists(atPath:url.path))
+    }
     func testActualCropAndMosaicPixelsAndBoundedPreviewTiles() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer {try? FileManager.default.removeItem(at: root)}

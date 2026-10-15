@@ -38,6 +38,10 @@ public struct SessionManifest: Codable, Identifiable, Sendable, Equatable {
     public var outputs: [String]
     public var maxProcessingMs: Double
     public var finishReason: CaptureFinishReason?
+    public var pageEdits: [PageEdit]?
+    public var renderedTiles: [FrameRecord]?
+    public var scrollbarRemoval: Bool?
+    public var compressedOutputs: [String]?
     public init(id: UUID = UUID()) {
         self.id = id; createdAt = Date(); updatedAt = createdAt; state = .recording; frames = []
         crop = CropInsets(); outerCrop = CropInsets(); warnings = []; outputs = []; maxProcessingMs = 0
