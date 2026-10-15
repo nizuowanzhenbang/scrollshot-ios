@@ -9,8 +9,12 @@ final class RecordingSessionTests: XCTestCase {
         let store = try SessionStore(root: root),source = fixture(width: 80,height: 600)
         let session = try RecordingSession(store: store,preferences: CapturePreferences(idleSeconds: 0.01)) {_ in}
         // ReplayKit delivers every frame; the pipeline samples only every 0.2s.
+        let began = ProcessInfo.processInfo.systemUptime
         for index in 0..<12 {
-            try session.process(image: image(source,start: index*5),timestamp: Double(index)*0.06)
+            // ReplayKit presentation timestamps advance while processing too.
+            // A synthetic fixed clock would stretch a 0.2s gate across several
+            // real seconds on a slow runner, unlike actual capture callbacks.
+            try session.process(image: image(source,start: index*5),timestamp: ProcessInfo.processInfo.systemUptime-began)
             try await Task.sleep(for: .milliseconds(60))
         }
         XCTAssertEqual(try store.load(session.id).state,.recording,"Short settings must not expire between sampled moving frames")
