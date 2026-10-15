@@ -5,7 +5,10 @@ import ScrollShotCore
 struct HomeView:View {
     @EnvironmentObject private var model:AppModel
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showFiles=false,showPhotos=false,showSettings=false,loadingMovie=false
+    @State private var showFiles=false
+    @State private var showPhotos=false
+    @State private var showSettings=false
+    @State private var loadingMovie=false
     @State private var movie:PhotosPickerItem?
     @State private var deleting:SessionManifest?
     var body:some View {

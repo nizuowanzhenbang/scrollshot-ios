@@ -5,7 +5,9 @@ struct ImageSaveControl:View {
     let session:SessionManifest
     var floating=true
     @Binding var compressRequested:Bool
-    @State private var saving=false,saved=false,choice=false
+    @State private var saving=false
+    @State private var saved=false
+    @State private var choice=false
     private var current:SessionManifest {model.sessions.first{$0.id==session.id} ?? session}
     var body:some View {
         Button(action:save) {
