@@ -26,12 +26,13 @@ struct ImageEditorView:View {
                 .navigationTitle("马赛克与裁剪").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement:.cancellationAction) {Button("取消"){dismiss()}.accessibilityIdentifier("image.cancel")}
-                    ToolbarItem(placement:.confirmationAction) {Button("应用"){model.export(session.id,crop:session.crop,outer:session.outerCrop,edits:edits,removeScrollbar:session.scrollbarRemoval ?? model.toolPreferences.smartScrollbar);dismiss()}.disabled(model.busy || edits.count != pages.count).accessibilityIdentifier("image.apply")}
+                    ToolbarItem(placement:.confirmationAction) {Button("应用"){if model.export(session.id,crop:session.crop,outer:session.outerCrop,edits:edits,removeScrollbar:session.scrollbarRemoval ?? model.toolPreferences.smartScrollbar) {dismiss()}}.disabled(model.busy || model.savingPhotos || edits.count != pages.count).accessibilityIdentifier("image.apply")}
                 }
                 .safeAreaInset(edge:.bottom) {
                     Picker("工具",selection:$mode) {Text("浏览").tag("browse");Text("马赛克").tag("mosaic");Text("裁剪").tag("crop")}.pickerStyle(.segmented).padding().background(.regularMaterial).accessibilityIdentifier("image.mode")
                 }
                 .onAppear {edits=session.pageEdits?.count==pages.count ? session.pageEdits! : Array(repeating:PageEdit(),count:pages.count)}
+                .alert("轻卷截图",isPresented:Binding(get:{model.message != nil},set:{if !$0 {model.message=nil}})) {Button("知道了"){model.message=nil}} message:{Text(model.message ?? "")}
         }
     }
 }

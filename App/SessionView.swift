@@ -46,10 +46,10 @@ struct SessionView: View {
                     if current.pageEdits?.contains(where:{$0.crop != nil || !$0.mosaics.isEmpty}) == true {Text("重新拼接会清除图片裁剪和马赛克；请在最终拼接后再编辑图片。 ").font(.caption).foregroundStyle(.orange)}
                     Button {model.export(current.id,crop: CropInsets(top: top,bottom: bottom),outer: CropInsets(top: finalTop,bottom: finalBottom))} label: {
                         Label(current.outputs.isEmpty ? "生成长截图" : "按当前范围重新生成",systemImage: "rectangle.stack.badge.plus").frame(maxWidth: .infinity)
-                    }.buttonStyle(.borderedProminent).disabled(model.busy || current.frames.isEmpty || current.state == .recording || current.state == .paused)
+                    }.buttonStyle(.borderedProminent).disabled(model.busy || model.savingPhotos || current.frames.isEmpty || current.state == .recording || current.state == .paused)
                 }.padding(16).background(.background,in: RoundedRectangle(cornerRadius: 18))
                 if !current.outputs.isEmpty {
-                    Button("马赛克与裁剪图片"){imageEditing=true}.buttonStyle(.bordered).disabled(model.busy)
+                    Button("马赛克与裁剪图片"){imageEditing=true}.buttonStyle(.bordered).disabled(model.busy || model.savingPhotos)
                     HStack {
                         Button {sharing = true} label: {Label("分享文件",systemImage: "square.and.arrow.up")}.buttonStyle(.borderedProminent)
                         ImageSaveControl(session:current,floating:false,compressRequested:.constant(false)).buttonStyle(.bordered)

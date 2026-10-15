@@ -131,8 +131,8 @@ import ScrollShotCore
             }
         }
     }
-    func export(_ id: UUID,crop: CropInsets,outer: CropInsets,edits:[PageEdit] = [],removeScrollbar:Bool? = nil) {
-        guard !busy,!savingPhotos else { return }
+    @discardableResult func export(_ id: UUID,crop: CropInsets,outer: CropInsets,edits:[PageEdit] = [],removeScrollbar:Bool? = nil)->Bool {
+        guard !busy,!savingPhotos else {message="请等待当前任务和相册保存完成后再应用编辑。";return false}
         busy = true; progress = 0; phase = "复核重叠与拼接"
         let store = store
         let clean=removeScrollbar ?? toolPreferences.smartScrollbar
@@ -149,6 +149,7 @@ import ScrollShotCore
                 message = error is CancellationError ? "已取消导出，原始草稿和已有结果仍在。" : error.localizedDescription
             }
         }
+        return true
     }
     func recover(_ session: SessionManifest) {
         do { try store.recover(session,currentlyCapturing: UIScreen.main.isCaptured); refresh() } catch { message = error.localizedDescription }

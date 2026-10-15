@@ -140,7 +140,9 @@ public enum CompressionService {
                         let a=Double(tile.offsetY)*scale,b=Double(tile.offsetY+tile.height)*scale
                         guard b>Double(top),a<Double(top+height) else {continue}
                         try Task.checkCancellation()
-                        try autoreleasepool {let image=try FrameImaging.load(file(tile.fileName));context.draw(image,in:CGRect(x:0,y:a-Double(top),width:Double(w),height:b-a))}
+                        // Tile offsets start at the image top; Quartz drawing
+                        // coordinates start at the bottom of this JPEG page.
+                        try autoreleasepool {let image=try FrameImaging.load(file(tile.fileName));context.draw(image,in:CGRect(x:0,y:Double(height)-(b-Double(top)),width:Double(w),height:b-a))}
                     }
                     guard let image=context.makeImage(),let destination=CGImageDestinationCreateWithURL(try file(name) as CFURL,UTType.jpeg.identifier as CFString,1,nil) else {throw ScrollShotError.io("JPEG 创建失败")}
                     CGImageDestinationAddImage(destination,image,[kCGImageDestinationLossyCompressionQuality:quality] as CFDictionary)
