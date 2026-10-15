@@ -63,4 +63,6 @@ jobs:
             build/simulator-launch.log
             build/ui-test.log
             build/ui-tests.xcresult
+            build/ui-attachments
+            build/attachment-export.log
           retention-days: 3

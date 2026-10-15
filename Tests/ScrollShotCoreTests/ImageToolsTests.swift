@@ -3,6 +3,36 @@ import ImageIO
 import CoreGraphics
 @testable import ScrollShotCore
 final class ImageToolsTests: XCTestCase {
+    func testCompressedTilesKeepTopBottomOrderAcrossPageBreakInsideTile() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let store=try SessionStore(root:root);var session=try store.create();session.state = .ready
+        let dir=store.directory(for:session.id),w=120,h=1024
+        let original=try PNGWriter(url:dir.appendingPathComponent("original.png"),width:w,height:h)
+        var tiles:[FrameRecord]=[],seed:UInt64=234
+        for t in 0..<2 {
+            let name="tile-\(t).png",writer=try PNGWriter(url:dir.appendingPathComponent(name),width:w,height:512)
+            for _ in 0..<512 {
+                var row=Data()
+                for _ in 0..<w {seed=seed &* 6364136223846793005 &+ 1;let n=UInt8((seed>>32)%55);row.append(contentsOf:t==0 ? [200,n,0,255]:[0,n,200,255])}
+                try writer.append(rgba:row,rowCount:1);try original.append(rgba:row,rowCount:1)
+            }
+            try writer.finish();tiles.append(FrameRecord(fileName:name,width:w,height:512,offsetY:t*512,timestamp:0))
+        }
+        try original.finish();session.outputs=["original.png"];session.renderedTiles=tiles;try store.save(session)
+        let result=try CompressionService.generate(id:session.id,store:store,maxWidth:w,maxHeight:600,quality:0.7)
+        let names=try XCTUnwrap(result.compressedOutputs);XCTAssertEqual(names.count,2)
+        func rgb(_ file:String,_ row:Int)throws->[UInt8] {
+            let image=try FrameImaging.load(dir.appendingPathComponent(file)),data=try XCTUnwrap(image.dataProvider?.data) as Data
+            let stride=image.bitsPerPixel/8,start=row*image.bytesPerRow+40*stride
+            return Array(data[start..<start+3])
+        }
+        let top=try rgb(names[0],30),before=try rgb(names[0],480),after=try rgb(names[0],560),tail=try rgb(names[1],30)
+        XCTAssertGreaterThan(top[0],150);XCTAssertLessThan(top[2],50)
+        XCTAssertGreaterThan(before[0],150);XCTAssertLessThan(before[2],50)
+        XCTAssertGreaterThan(after[2],150);XCTAssertLessThan(after[0],50)
+        XCTAssertGreaterThan(tail[2],150);XCTAssertLessThan(tail[0],50)
+    }
     func testToolSettingsPersistAndInvalidThresholdCannotReplaceThem() throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer {try? FileManager.default.removeItem(at:root)}

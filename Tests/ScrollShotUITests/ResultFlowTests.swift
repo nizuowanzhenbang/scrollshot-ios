@@ -7,6 +7,7 @@ final class ResultFlowTests: XCTestCase {
         XCTAssertTrue(settings.waitForExistence(timeout:5));settings.tap()
         XCTAssertTrue(app.segmentedControls["settings.appearance"].waitForExistence(timeout:5))
         XCTAssertTrue(app.textFields["settings.compression.mb"].exists)
+        let settingsShot=XCTAttachment(screenshot:app.screenshot());settingsShot.name="settings";settingsShot.lifetime = .keepAlways;add(settingsShot)
         let field=app.textFields["settings.compression.mb"];field.tap()
         let count=(field.value as? String)?.count ?? 4
         field.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:count)+"0.0001")
@@ -16,11 +17,14 @@ final class ResultFlowTests: XCTestCase {
         app.buttons["library.more"].tap()
         let rows=app.buttons.matching(identifier:"library.open")
         XCTAssertGreaterThan(rows.count,5)
+        let beforeDelete=rows.count
         let last=rows.element(boundBy:rows.count-1)
         if !last.isHittable {app.swipeUp()}
         last.swipeRight()
         XCTAssertTrue(app.buttons["library.delete"].waitForExistence(timeout:5));app.buttons["library.delete"].tap()
         app.buttons["library.confirm.delete"].tap()
+        let removed=XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in rows.count==beforeDelete-1},object:nil)
+        XCTAssertEqual(XCTWaiter.wait(for:[removed],timeout:5),.completed)
         app.navigationBars.buttons.element(boundBy:0).tap()
         app.buttons.matching(identifier:"library.open").firstMatch.tap()
         app.buttons["result.save"].tap()
@@ -29,6 +33,7 @@ final class ResultFlowTests: XCTestCase {
         app.buttons["result.tools"].tap()
         XCTAssertTrue(app.buttons["tools.image"].waitForExistence(timeout:5));app.buttons["tools.image"].tap()
         XCTAssertTrue(app.segmentedControls["image.mode"].waitForExistence(timeout:5))
+        let imageShot=XCTAttachment(screenshot:app.screenshot());imageShot.name="image-editor";imageShot.lifetime = .keepAlways;add(imageShot)
         app.buttons["image.cancel"].tap()
     }
     @MainActor func testFreshResultOpensFullscreenSavesAndDoesNotReopenAfterDismissal() throws {
