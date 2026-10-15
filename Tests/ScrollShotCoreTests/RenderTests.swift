@@ -8,7 +8,8 @@ final class RenderTests: XCTestCase {
         defer {try? FileManager.default.removeItem(at: root)}
         let input = root.appendingPathComponent("rows.png")
         let writer = try PNGWriter(url: input,width: 4,height: 130)
-        let bytes = (0..<130).flatMap {row in Array(repeating: [UInt8(row),0,0,255],count: 4).flatMap {$0}}
+        var bytes = [UInt8]()
+        for row in 0..<130 { for _ in 0..<4 { bytes.append(contentsOf: [UInt8(row),0,0,255]) } }
         try writer.append(rgba: Data(bytes),rowCount: 130);try writer.finish()
         let r = FrameRecord(fileName: "rows.png",width: 4,height: 130,offsetY: 0,timestamp: 0)
         let plan = try XCTUnwrap(StitchPlanner.build(records: [r],crop: CropInsets()).first)
