@@ -39,3 +39,9 @@ for _ in range(45):
 raise SystemExit('Application did not export the synthetic fixture')
 PY
 xcrun simctl io "$udid" screenshot build/editor-screen.png
+
+# A second unseen fixture pins the automatic presentation and real save flow.
+xcrun simctl terminate "$udid" "$bundle"
+swift run FixtureGenerator "$container/Documents/Drafts" >build/fixture-ui-session.txt
+xcrun simctl privacy grant "$udid" photos-add "$bundle"
+if ! xcodebuild test -project ScrollShot.xcodeproj -scheme ScrollShotImport -destination "id=$udid" -derivedDataPath build/simulator -resultBundlePath build/ui-tests.xcresult -parallel-testing-enabled NO -only-testing:ScrollShotUITests/ResultFlowTests CODE_SIGNING_ALLOWED=NO >build/ui-test.log 2>&1; then tail -70 build/ui-test.log; exit 1; fi

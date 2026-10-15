@@ -88,6 +88,17 @@ targets:
           NSExtensionPointIdentifier: com.apple.broadcast-services-upload
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
           RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+  ScrollShotUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests/ScrollShotUITests]
+    dependencies:
+      - target: ScrollShotImport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nizuowanzhenbang.scrollshot.uitests
+        TEST_TARGET_NAME: ScrollShotImport
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   ScrollShot:
     build:
@@ -97,3 +108,6 @@ schemes:
     build:
       targets:
         ScrollShotImport: all
+    test:
+      targets:
+        - ScrollShotUITests

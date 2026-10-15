@@ -24,6 +24,7 @@ public struct FrameRecord: Codable, Sendable, Equatable {
     }
 }
 public enum SessionState: String, Codable, Sendable { case recording, paused, ready, interrupted, failed }
+public enum CaptureFinishReason: String, Codable, Sendable {case manual,idle,failed}
 public struct SessionManifest: Codable, Identifiable, Sendable {
     public var id: UUID
     public var createdAt: Date
@@ -36,6 +37,7 @@ public struct SessionManifest: Codable, Identifiable, Sendable {
     public var warnings: [String]
     public var outputs: [String]
     public var maxProcessingMs: Double
+    public var finishReason: CaptureFinishReason?
     public init(id: UUID = UUID()) {
         self.id = id; createdAt = Date(); updatedAt = createdAt; state = .recording; frames = []
         crop = CropInsets(); outerCrop = CropInsets(); warnings = []; outputs = []; maxProcessingMs = 0

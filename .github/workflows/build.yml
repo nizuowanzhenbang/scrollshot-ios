@@ -10,7 +10,7 @@ concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  test:
+  core:
     runs-on: macos-15
     timeout-minutes: 20
     steps:
@@ -28,6 +28,11 @@ jobs:
           name: test-logs
           path: test.log
           retention-days: 3
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
       - name: Device IPA builds
         shell: bash
         run: bash scripts/build.sh
@@ -55,4 +60,6 @@ jobs:
             build/simulator-*.json
             build/simulator-build.log
             build/simulator-launch.log
+            build/ui-test.log
+            build/ui-tests.xcresult
           retention-days: 3
