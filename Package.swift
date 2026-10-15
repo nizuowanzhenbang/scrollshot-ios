@@ -5,7 +5,8 @@ let package = Package(
     platforms: [.iOS("18.0"), .macOS(.v14)],
     products: [.library(name: "ScrollShotCore", targets: ["ScrollShotCore"])],
     targets: [
-        .target(name: "ScrollShotCore", path: "Core"),
+        .systemLibrary(name: "CZlib", path: "CZlib"),
+        .target(name: "ScrollShotCore", dependencies: ["CZlib"], path: "Core"),
         .testTarget(name: "ScrollShotCoreTests", dependencies: ["ScrollShotCore"], path: "Tests/ScrollShotCoreTests")
     ]
 )

@@ -27,6 +27,7 @@ public enum SessionState: String, Codable, Sendable { case recording, paused, re
 public struct SessionManifest: Codable, Identifiable, Sendable {
     public var id: UUID
     public var createdAt: Date
+    public var updatedAt: Date
     public var state: SessionState
     public var frames: [FrameRecord]
     public var crop: CropInsets
@@ -34,7 +35,7 @@ public struct SessionManifest: Codable, Identifiable, Sendable {
     public var outputs: [String]
     public var maxProcessingMs: Double
     public init(id: UUID = UUID()) {
-        self.id = id; createdAt = Date(); state = .recording; frames = []
+        self.id = id; createdAt = Date(); updatedAt = createdAt; state = .recording; frames = []
         crop = CropInsets(); warnings = []; outputs = []; maxProcessingMs = 0
     }
 }
