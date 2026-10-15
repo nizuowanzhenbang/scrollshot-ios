@@ -38,7 +38,7 @@ final class ResultFlowTests: XCTestCase {
         XCTAssertTrue(imageTool.waitForExistence(timeout:5));imageTool.tap()
         XCTAssertTrue(app.segmentedControls["image.mode"].waitForExistence(timeout:5))
         let imageShot=XCTAttachment(screenshot:app.screenshot());imageShot.name="image-editor";imageShot.lifetime = .keepAlways;add(imageShot)
-        app.descendants(matching:.any).matching(identifier:"image.precise.0").firstMatch.tap()
+        app.buttons["四边裁剪（像素）"].tap()
         let left=app.textFields["image.inset.0.0"]
         XCTAssertTrue(left.waitForExistence(timeout:5));left.coordinate(withNormalizedOffset:CGVector(dx:0.99,dy:0.5)).tap();left.typeText(XCUIKeyboardKey.delete.rawValue+"5")
         app.buttons["image.apply"].tap()

@@ -49,7 +49,7 @@ private struct EditablePageView:View {
             HStack {Button("撤销一块马赛克"){if !edit.mosaics.isEmpty {edit.mosaics.removeLast()}}.disabled(edit.mosaics.isEmpty);Spacer();Button("取消裁剪"){edit.crop=nil}.disabled(edit.crop==nil)}.font(.caption).padding(.horizontal)
             DisclosureGroup("四边裁剪（像素）") {
                 HStack {insetField("左",axis:0);insetField("右",axis:1);insetField("上",axis:2);insetField("下",axis:3)}
-            }.font(.caption).padding(.horizontal).accessibilityIdentifier("image.precise.\(index)")
+            }.font(.caption).padding(.horizontal)
             GeometryReader {geo in
                 let scale=geo.size.width/CGFloat(page.width)
                 ZStack(alignment:.topLeading) {
