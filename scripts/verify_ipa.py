@@ -3,11 +3,11 @@ import argparse, hashlib, json, pathlib, plistlib, struct, zipfile
 def executable(data):
     if data[:4] != b'\xcf\xfa\xed\xfe' or struct.unpack_from('<I',data,4)[0] != 0x100000c:
         raise ValueError('Executable must be thin ARM64 Mach-O')
-    commands=struct.unpack_from('<I',data,16)[0]; offset=32; entitlements={}; minimum=None
+    commands=struct.unpack_from('<I',data,16)[0]; offset=32; entitlements={}; minimum=None; platform=None
     for _ in range(commands):
         cmd,size=struct.unpack_from('<II',data,offset)
         if size < 8 or offset+size > len(data): raise ValueError('Invalid load command')
-        if cmd==0x32: minimum=struct.unpack_from('<I',data,offset+12)[0]
+        if cmd==0x32: platform,minimum=struct.unpack_from('<II',data,offset+8)
         if cmd in (0x21,0x2c) and struct.unpack_from('<I',data,offset+16)[0] != 0: raise ValueError('Encrypted executable')
         if cmd==0x1d:
             sig,length=struct.unpack_from('<II',data,offset+8)
@@ -18,7 +18,7 @@ def executable(data):
                 blob,sz=struct.unpack_from('>II',data,sig+relative)
                 if blob==0xfade7171: entitlements=plistlib.loads(data[sig+relative+8:sig+relative+sz])
         offset+=size
-    if minimum is None or minimum < (18<<16): raise ValueError('Missing iOS 18 deployment command')
+    if minimum != (18<<16) or platform != 2: raise ValueError('Expected device iOS 18.0 deployment command')
     return entitlements
 
 def verify(path,mode):

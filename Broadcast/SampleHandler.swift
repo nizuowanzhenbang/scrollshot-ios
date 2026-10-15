@@ -18,7 +18,7 @@ final class SampleHandler: RPBroadcastSampleHandler {
         guard sampleBufferType == .video, CMSampleBufferIsValid(sampleBuffer),let buffer = CMSampleBufferGetImageBuffer(sampleBuffer),let pipeline else { return }
         do {
             try autoreleasepool {
-                let attachment = CMGetAttachment(sampleBuffer,key: RPVideoSampleOrientationKey,attachmentModeOut: nil) as? NSNumber
+                let attachment = CMGetAttachment(sampleBuffer,key: RPVideoSampleOrientationKey as CFString,attachmentModeOut: nil) as? NSNumber
                 let orientation = CGImagePropertyOrientation(rawValue: attachment?.uint32Value ?? 1) ?? .up
                 let image = CIImage(cvPixelBuffer: buffer).oriented(orientation)
                 try pipeline.process(image: image,timestamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds)

@@ -7,6 +7,7 @@ let package = Package(
     targets: [
         .systemLibrary(name: "CZlib", path: "CZlib"),
         .target(name: "ScrollShotCore", dependencies: ["CZlib"], path: "Core"),
-        .testTarget(name: "ScrollShotCoreTests", dependencies: ["ScrollShotCore"], path: "Tests/ScrollShotCoreTests")
+        .testTarget(name: "ScrollShotCoreTests", dependencies: ["ScrollShotCore"], path: "Tests/ScrollShotCoreTests"),
+        .executableTarget(name: "FixtureGenerator",dependencies: ["ScrollShotCore"],path: "Tools/FixtureGenerator")
     ]
 )
