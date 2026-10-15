@@ -1,0 +1,27 @@
+name: Build and test iOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, feat/native]
+    paths-ignore: ['docs/**', '**.md']
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Core tests
+        run: swift test 2>&1 | tee test.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-logs
+          path: test.log
+          retention-days: 3
