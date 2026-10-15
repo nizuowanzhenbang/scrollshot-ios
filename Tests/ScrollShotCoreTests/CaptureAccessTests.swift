@@ -11,7 +11,7 @@ final class CaptureAccessTests: XCTestCase {
         XCTAssertEqual(CaptureAccess.profileGroups(try profile([])),[])
     }
     func testResignedCommonGroupReplacesUnavailableBuildGroup() throws {
-        let result = try XCTUnwrap(CaptureAccess.select(configured: "group.build.original",hostGroups: ["group.synthetic.b","group.synthetic.a"],extensionGroups: ["group.synthetic.a","group.synthetic.b"],container: {$0 == "group.synthetic.b" ? self.root : nil}))
+        let result = try XCTUnwrap(CaptureAccess.select(configured: "group.build.original",hostGroups: ["group.synthetic.b","group.synthetic.a"],extensionGroups: ["group.synthetic.b"],container: {$0 == "group.synthetic.b" ? self.root : nil}))
         XCTAssertEqual(result.group,"group.synthetic.b")
         XCTAssertEqual(result.drafts.path,"/shared/ScrollShot/Drafts")
     }

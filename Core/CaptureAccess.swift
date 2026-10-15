@@ -28,14 +28,13 @@ public struct CaptureAccess: Sendable {
         if let hostGroups,let extensionGroups {
             candidates += Set(hostGroups).intersection(extensionGroups).filter(validGroup).sorted().filter {$0 != configured}
         }
-        for group in candidates {
-            guard let root = container(group) else { continue }
-            // Keep existing drafts for the original group; namespace re-signed
-            // groups because a signing profile may authorize other apps too.
-            let base = group == configured ? root : root.appendingPathComponent("ScrollShot",isDirectory: true)
-            return SharedCaptureContainer(group: group,drafts: base.appendingPathComponent("Drafts",isDirectory: true))
-        }
-        return nil
+        // Choose before probing process-local access. Skipping inaccessible
+        // candidates could send the host to A and its extension to B.
+        guard let group = candidates.first,let root = container(group) else { return nil }
+        // Keep existing drafts for the original group; namespace re-signed
+        // groups because a signing profile may authorize other apps too.
+        let base = group == configured ? root : root.appendingPathComponent("ScrollShot",isDirectory: true)
+        return SharedCaptureContainer(group: group,drafts: base.appendingPathComponent("Drafts",isDirectory: true))
     }
     public static func inspect(bundleURL: URL,container: (String)->URL?) -> CaptureAccess {
         let host = bundleURL.pathExtension == "appex" ? bundleURL.deletingLastPathComponent().deletingLastPathComponent() : bundleURL
