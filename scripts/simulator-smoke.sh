@@ -48,3 +48,13 @@ for unused in 1 2 3 4 5; do swift run FixtureGenerator "$container/Documents/Dra
 xcrun simctl privacy "$udid" grant photos-add "$bundle"
 if ! xcodebuild test -project ScrollShot.xcodeproj -scheme ScrollShotImport -destination "id=$udid" -derivedDataPath build/simulator -resultBundlePath build/ui-tests.xcresult -parallel-testing-enabled NO -only-testing:ScrollShotUITests/ResultFlowTests CODE_SIGNING_ALLOWED=NO >build/ui-test.log 2>&1; then tail -70 build/ui-test.log; exit 1; fi
 xcrun xcresulttool export attachments --path build/ui-tests.xcresult --output-path build/ui-attachments >build/attachment-export.log 2>&1 || true
+python3 - "$container/Documents/Drafts" <<'PY'
+import pathlib,json,sys,struct
+sessions=[(p,json.loads(p.read_bytes())) for p in pathlib.Path(sys.argv[1]).glob('*/session.json')]
+assert len(sessions)==6,len(sessions)
+p,m=max(sessions,key=lambda item:item[1]['createdAt'])
+assert m['pageEdits'][0]['crop']['x']==5,m.get('pageEdits')
+w,h=struct.unpack_from('>II',(p.parent/m['outputs'][0]).read_bytes(),16)
+assert (w,h)==(123,680),(w,h)
+json.dump({'result':'PASS','remaining_drafts':len(sessions),'ui_crop_left':5,'width':w,'height':h},open('build/simulator-edit.json','w'),indent=2)
+PY

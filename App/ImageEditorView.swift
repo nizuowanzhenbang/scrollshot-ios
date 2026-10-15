@@ -86,7 +86,7 @@ private struct EditablePageView:View {
         guard right-x>=2,bottom-y>=2 else {return nil};return PixelRect(x:x,y:y,width:right-x,height:bottom-y)
     }
     private func insetField(_ name:String,axis:Int)->some View {
-        VStack {Text(name);TextField(name,text:Binding(get:{String(inset(axis))},set:{setInset(axis,text:$0)})).keyboardType(.numberPad).textFieldStyle(.roundedBorder).multilineTextAlignment(.center)}
+        VStack {Text(name);TextField(name,text:Binding(get:{String(inset(axis))},set:{setInset(axis,text:$0)})).keyboardType(.numberPad).textFieldStyle(.roundedBorder).multilineTextAlignment(.center).accessibilityIdentifier("image.inset.\(index).\(axis)")}
     }
     private func inset(_ axis:Int)->Int {
         let r=edit.crop ?? PixelRect(x:0,y:0,width:page.width,height:page.height)

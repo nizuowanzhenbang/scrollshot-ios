@@ -34,7 +34,13 @@ final class ResultFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["tools.image"].waitForExistence(timeout:5));app.buttons["tools.image"].tap()
         XCTAssertTrue(app.segmentedControls["image.mode"].waitForExistence(timeout:5))
         let imageShot=XCTAttachment(screenshot:app.screenshot());imageShot.name="image-editor";imageShot.lifetime = .keepAlways;add(imageShot)
-        app.buttons["image.cancel"].tap()
+        app.buttons["四边裁剪（像素）"].tap()
+        let left=app.textFields["image.inset.0.0"]
+        XCTAssertTrue(left.waitForExistence(timeout:5));left.tap();left.typeText(XCUIKeyboardKey.delete.rawValue+"5")
+        app.buttons["image.apply"].tap()
+        XCTAssertTrue(app.buttons["result.tools"].waitForExistence(timeout:5))
+        let ready=XCTNSPredicateExpectation(predicate:NSPredicate(format:"enabled == true"),object:app.buttons["result.save"])
+        XCTAssertEqual(XCTWaiter.wait(for:[ready],timeout:20),.completed)
     }
     @MainActor func testFreshResultOpensFullscreenSavesAndDoesNotReopenAfterDismissal() throws {
         let app = XCUIApplication();app.launch()
