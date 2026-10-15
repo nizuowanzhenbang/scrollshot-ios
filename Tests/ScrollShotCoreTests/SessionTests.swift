@@ -1,6 +1,32 @@
 import XCTest
 @testable import ScrollShotCore
 final class SessionTests: XCTestCase {
+    func testRecoveryReloadsHeartbeatAndNeverOverwritesActiveFrames() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at: root)}
+        let store = try SessionStore(root: root)
+        var snapshot = try store.create(); snapshot.updatedAt = Date(timeIntervalSinceNow: -60)
+        var latest = snapshot
+        latest.frames = [FrameRecord(fileName: "latest.jpg",width: 40,height: 100,offsetY: 0,timestamp: 2)]
+        try store.save(latest)
+        XCTAssertThrowsError(try store.recover(snapshot,currentlyCapturing: false))
+        XCTAssertEqual(try store.load(snapshot.id).frames,latest.frames)
+        XCTAssertEqual(try store.load(snapshot.id).state,.recording)
+    }
+    func testRecoveryRefusesActiveScreenCaptureAndPreservesFinishedState() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at: root)}
+        let store = try SessionStore(root: root)
+        var session = try store.create(); session.updatedAt = Date(timeIntervalSinceNow: -60)
+        try JSONEncoder().encode(session).write(to: store.directory(for: session.id).appendingPathComponent("session.json"))
+        XCTAssertThrowsError(try store.recover(session,currentlyCapturing: true))
+        XCTAssertEqual(try store.load(session.id).state,.recording)
+        try store.recover(session,currentlyCapturing: false)
+        XCTAssertEqual(try store.load(session.id).state,.interrupted)
+        session.state = .ready; try store.save(session)
+        try store.recover(session,currentlyCapturing: false)
+        XCTAssertEqual(try store.load(session.id).state,.ready)
+    }
     func testAtomicRoundTripAndIndependentSessions() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { if FileManager.default.fileExists(atPath: root.path) { try? FileManager.default.removeItem(at: root) } }

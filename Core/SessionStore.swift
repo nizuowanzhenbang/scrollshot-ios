@@ -20,6 +20,10 @@ public final class SessionStore: @unchecked Sendable {
         let data = try Data(contentsOf: directory(for: id).appendingPathComponent("session.json"))
         return try JSONDecoder().decode(SessionManifest.self,from: data)
     }
+    public func recover(_ snapshot: SessionManifest,currentlyCapturing: Bool,now: Date = Date()) throws {
+        guard now.timeIntervalSince(snapshot.updatedAt) > 10 else { throw ScrollShotError.unavailable("采集仍在更新，请先停止录屏。") }
+        var session = snapshot; session.state = .interrupted; try save(session)
+    }
     public func all() throws -> [SessionManifest] {
         try FileManager.default.contentsOfDirectory(at: root,includingPropertiesForKeys: nil)
             .compactMap { url -> SessionManifest? in
