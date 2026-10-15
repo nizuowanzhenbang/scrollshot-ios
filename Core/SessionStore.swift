@@ -6,6 +6,7 @@ public final class SessionStore: @unchecked Sendable {
         try FileManager.default.createDirectory(at: root,withIntermediateDirectories: true)
     }
     public func directory(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString, isDirectory: true) }
+    public func delete(_ id: UUID) throws {throw ScrollShotError.unavailable("尚未实现删除")}
     public func create() throws -> SessionManifest {
         let session = SessionManifest()
         try FileManager.default.createDirectory(at: directory(for: session.id),withIntermediateDirectories: false)
