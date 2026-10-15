@@ -46,7 +46,10 @@ swift run FixtureGenerator "$container/Documents/Drafts" >build/fixture-ui-sessi
 # Seven drafts verify the latest-five home and all-drafts archive.
 for unused in 1 2 3 4 5; do swift run FixtureGenerator "$container/Documents/Drafts" >>build/fixture-ui-session.txt; done
 xcrun simctl privacy "$udid" grant photos-add "$bundle"
-if ! xcodebuild test -project ScrollShot.xcodeproj -scheme ScrollShotImport -destination "id=$udid" -derivedDataPath build/simulator -resultBundlePath build/ui-tests.xcresult -parallel-testing-enabled NO -only-testing:ScrollShotUITests/ResultFlowTests CODE_SIGNING_ALLOWED=NO >build/ui-test.log 2>&1; then tail -70 build/ui-test.log; exit 1; fi
+if ! xcodebuild test -project ScrollShot.xcodeproj -scheme ScrollShotImport -destination "id=$udid" -derivedDataPath build/simulator -resultBundlePath build/ui-tests.xcresult -parallel-testing-enabled NO -only-testing:ScrollShotUITests/ResultFlowTests CODE_SIGNING_ALLOWED=NO >build/ui-test.log 2>&1; then
+  xcrun xcresulttool export attachments --path build/ui-tests.xcresult --output-path build/ui-attachments >build/attachment-export.log 2>&1 || true
+  tail -90 build/ui-test.log; exit 1
+fi
 xcrun xcresulttool export attachments --path build/ui-tests.xcresult --output-path build/ui-attachments >build/attachment-export.log 2>&1 || true
 python3 - "$container/Documents/Drafts" <<'PY'
 import pathlib,json,sys,struct
