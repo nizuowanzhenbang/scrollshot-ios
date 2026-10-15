@@ -31,12 +31,13 @@ public struct SessionManifest: Codable, Identifiable, Sendable {
     public var state: SessionState
     public var frames: [FrameRecord]
     public var crop: CropInsets
+    public var outerCrop: CropInsets
     public var warnings: [String]
     public var outputs: [String]
     public var maxProcessingMs: Double
     public init(id: UUID = UUID()) {
         self.id = id; createdAt = Date(); updatedAt = createdAt; state = .recording; frames = []
-        crop = CropInsets(); warnings = []; outputs = []; maxProcessingMs = 0
+        crop = CropInsets(); outerCrop = CropInsets(); warnings = []; outputs = []; maxProcessingMs = 0
     }
 }
 public struct ImagePiece: Sendable, Equatable {

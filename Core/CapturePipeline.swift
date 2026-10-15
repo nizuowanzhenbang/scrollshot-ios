@@ -41,6 +41,7 @@ public final class CapturePipeline {
         let name = String(format: "%06d.jpg",manifest.frames.count)
         let data = try imaging.jpeg(tail)
         try store.writeFrame(data,fileName: name,session: manifest.id)
+        if manifest.frames.isEmpty { manifest.crop = CropInsets(top: Int(tail.extent.height*0.12),bottom: Int(tail.extent.height*0.10)) }
         manifest.frames.append(FrameRecord(fileName: name,width: Int(tail.extent.width),height: Int(tail.extent.height),offsetY: Int(position.rounded()),timestamp: tailTime,segment: scene))
         lastStoredPosition = position
         try store.save(manifest)

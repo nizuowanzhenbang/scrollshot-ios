@@ -1,0 +1,93 @@
+name: ScrollShot
+options:
+  bundleIdPrefix: com.nizuowanzhenbang
+  deploymentTarget:
+    iOS: '18.0'
+packages:
+  ScrollShotCore:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: '1'
+    IPHONEOS_DEPLOYMENT_TARGET: '18.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    CODE_SIGN_STYLE: Manual
+    APP_GROUP_ID: group.com.nizuowanzhenbang.scrollshot
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  ScrollShot:
+    type: application
+    platform: iOS
+    sources: [App, Assets.xcassets]
+    dependencies:
+      - package: ScrollShotCore
+      - target: BroadcastExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nizuowanzhenbang.scrollshot
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: Config/Standard.entitlements
+    info:
+      path: Config/Standard-Info.plist
+      properties:
+        CFBundleDisplayName: 轻卷截图
+        AppGroupIdentifier: $(APP_GROUP_ID)
+        BroadcastExtensionIdentifier: com.nizuowanzhenbang.scrollshot.Broadcast
+        UILaunchScreen: {}
+        NSPhotoLibraryAddUsageDescription: 将你生成的长截图保存到相册。
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+  ScrollShotImport:
+    type: application
+    platform: iOS
+    sources: [App, Assets.xcassets]
+    dependencies:
+      - package: ScrollShotCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nizuowanzhenbang.scrollshot.import
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) IMPORT_ONLY
+    info:
+      path: Config/Import-Info.plist
+      properties:
+        CFBundleDisplayName: 轻卷截图·导入
+        UILaunchScreen: {}
+        NSPhotoLibraryAddUsageDescription: 将你生成的长截图保存到相册。
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+  BroadcastExtension:
+    type: app-extension
+    platform: iOS
+    sources: [Broadcast]
+    dependencies:
+      - package: ScrollShotCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nizuowanzhenbang.scrollshot.Broadcast
+        CODE_SIGN_ENTITLEMENTS: Config/Standard.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    info:
+      path: Config/Broadcast-Info.plist
+      properties:
+        CFBundleDisplayName: 轻卷截图
+        AppGroupIdentifier: $(APP_GROUP_ID)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+          NSExtensionAttributes:
+            RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+schemes:
+  ScrollShot:
+    build:
+      targets:
+        ScrollShot: all
+  ScrollShotImport:
+    build:
+      targets:
+        ScrollShotImport: all

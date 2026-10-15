@@ -1,0 +1,120 @@
+import Foundation
+import SwiftUI
+import ScrollShotCore
+
+@MainActor final class AppModel: ObservableObject {
+    @Published var sessions: [SessionManifest] = []
+    @Published var selected: SessionManifest?
+    @Published var busy = false
+    @Published var progress = 0.0
+    @Published var phase = ""
+    @Published var message: String?
+    let store: SessionStore
+    let captureReady: Bool
+    let captureExplanation: String
+    private var operation: Task<Void,Never>?
+    private var attempted: Set<UUID> = []
+    init() {
+        let documents = FileManager.default.urls(for: .documentDirectory,in: .userDomainMask)[0]
+        var root = documents.appendingPathComponent("Drafts",isDirectory: true)
+        #if IMPORT_ONLY
+        captureReady = false
+        captureExplanation = "从相册或文件导入系统录屏，在本机生成长图。"
+        #else
+        if let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String,
+           let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) {
+            root = container.appendingPathComponent("Drafts",isDirectory: true)
+            captureReady = true; captureExplanation = "开始后切到目标 App 匀速向下滚动，停止录屏后返回。"
+        } else {
+            captureReady = false; captureExplanation = "共享权限自检未通过。可先导入录屏，或安装不带共享权限的导入版。"
+        }
+        #endif
+        do { store = try SessionStore(root: root) }
+        catch {
+            // A writable app-local fallback keeps imported drafts usable.
+            store = try! SessionStore(root: documents.appendingPathComponent("LocalDrafts",isDirectory: true))
+        }
+        refresh()
+    }
+    func refresh() { do { sessions = try store.all() } catch { message = error.localizedDescription } }
+    func refreshAndProcess() {
+        refresh()
+        guard !busy,let s = sessions.first(where: {$0.state == .ready && !$0.frames.isEmpty && $0.outputs.isEmpty && !attempted.contains($0.id)}) else { return }
+        attempted.insert(s.id); selected = s; export(s.id,crop: s.crop,outer: s.outerCrop)
+    }
+    func cancel() { operation?.cancel() }
+    func importVideo(_ url: URL,removeAfter: Bool = false) {
+        guard !busy else { return }
+        busy = true; progress = 0; phase = "读取录屏画面"
+        let store = store
+        operation = Task {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer {
+                if scoped { url.stopAccessingSecurityScopedResource() }
+                if removeAfter { try? FileManager.default.removeItem(at: url) }
+            }
+            let report: @Sendable(Double)->Void = { [weak self] p in Task { @MainActor in self?.progress = p } }
+            let worker = Task.detached(priority: .userInitiated) {
+                try await ImportService.importVideo(url: url,store: store,progress: report)
+            }
+            do {
+                let result = try await withTaskCancellationHandler(operation: {try await worker.value},onCancel: {worker.cancel()})
+                busy = false; refresh(); selected = result; attempted.insert(result.id)
+                export(result.id,crop: result.crop,outer: result.outerCrop)
+            } catch {
+                busy = false; refresh()
+                message = error is CancellationError ? "已取消，已采集的画面保存在草稿中。" : error.localizedDescription
+            }
+        }
+    }
+    func export(_ id: UUID,crop: CropInsets,outer: CropInsets) {
+        guard !busy else { return }
+        busy = true; progress = 0; phase = "复核重叠与拼接"
+        let store = store
+        operation = Task {
+            let report: @Sendable(Double)->Void = { [weak self] p in Task { @MainActor in self?.progress = p } }
+            let worker = Task.detached(priority: .userInitiated) {
+                var session = try store.load(id)
+                guard session.state != .recording && session.state != .paused else { throw ScrollShotError.unavailable("请先停止系统录屏；异常中断的草稿可稍后恢复。") }
+                let directory = store.directory(for: id)
+                let refined = try Refinement.records(session.frames,directory: directory,crop: crop,progress: {report($0*0.2)})
+                let segments = try StitchPlanner.build(records: refined,crop: crop)
+                guard !segments.isEmpty else { throw ScrollShotError.invalidInput("草稿没有有效图像") }
+                var pages: [StitchSegment] = []
+                for segment in segments {
+                    let trimmed = try StitchPlanner.trim(segment,top: outer.top,bottom: outer.bottom)
+                    pages += try StitchPlanner.split(trimmed)
+                }
+                let exportName = "export-"+UUID().uuidString
+                let exportDirectory = directory.appendingPathComponent(exportName,isDirectory: true)
+                var outputs: [String] = []
+                for (i,page) in pages.enumerated() {
+                    let url = try StripRenderer.export(segment: page,sessionDirectory: directory,outputDirectory: exportDirectory,progress: {report(0.2+0.8*(Double(i)+$0)/Double(pages.count))})
+                    outputs.append(exportName+"/"+url.lastPathComponent)
+                }
+                if segments.count > 1 && !session.warnings.contains("检测到多个连续片段，结果已分别保存。") { session.warnings.append("检测到多个连续片段，结果已分别保存。") }
+                session.frames = refined; session.crop = crop; session.outerCrop = outer; session.outputs = outputs
+                try store.save(session)
+            }
+            do {
+                try await withTaskCancellationHandler(operation: {try await worker.value},onCancel: {worker.cancel()})
+                busy = false; progress = 1; refresh()
+            } catch {
+                busy = false; refresh()
+                message = error is CancellationError ? "已取消导出，原始草稿和已有结果仍在。" : error.localizedDescription
+            }
+        }
+    }
+    func recover(_ session: SessionManifest) {
+        guard Date().timeIntervalSince(session.updatedAt) > 10 else { message = "采集仍在更新，请先通过系统入口停止录屏。"; return }
+        do { var s = session; s.state = .interrupted; try store.save(s); refresh() } catch { message = error.localizedDescription }
+    }
+    func outputURLs(_ session: SessionManifest) -> [URL] {
+        let root = store.directory(for: session.id).standardizedFileURL
+        return session.outputs.compactMap { name in
+            let url = root.appendingPathComponent(name).standardizedFileURL
+            guard url.path.hasPrefix(root.path+"/"),FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return url
+        }
+    }
+}
