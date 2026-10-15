@@ -7,11 +7,7 @@ public enum ExportService {
         let refined = try Refinement.records(session.frames,directory: directory,crop: crop,progress: {progress($0*0.2)})
         let segments = try StitchPlanner.build(records: refined,crop: crop)
         guard !segments.isEmpty else { throw ScrollShotError.invalidInput("草稿没有有效图像") }
-        var pages: [StitchSegment] = []
-        for segment in segments {
-            let trimmed = try StitchPlanner.trim(segment,top: outer.top,bottom: outer.bottom)
-            pages += try StitchPlanner.split(trimmed)
-        }
+        let pages = try StitchPlanner.pages(segments: segments,outer: outer)
         let exportName = "export-"+UUID().uuidString
         let exportDirectory = directory.appendingPathComponent(exportName,isDirectory: true)
         var committed = false

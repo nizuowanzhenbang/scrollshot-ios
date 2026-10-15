@@ -5,7 +5,8 @@ import ScrollShotCore
 
 @MainActor final class AppModel: ObservableObject {
     @Published var sessions: [SessionManifest] = []
-    @Published var selected: SessionManifest?
+    @Published var destination: SessionDestination?
+    @Published var capturePreferences = CapturePreferences()
     @Published var busy = false
     @Published var progress = 0.0
     @Published var phase = ""
@@ -16,7 +17,7 @@ import ScrollShotCore
     let captureExtensionIdentifier: String?
     let captureDiagnostics: String
     private var operation: Task<Void,Never>?
-    private var attempted: Set<UUID> = []
+    private var lastPresentedDate = Date.distantPast
     init() {
         let documents = FileManager.default.urls(for: .documentDirectory,in: .userDomainMask)[0]
         var root = documents.appendingPathComponent("Drafts",isDirectory: true)
@@ -40,13 +41,42 @@ import ScrollShotCore
             ready = false;explanation = "共享草稿目录无法写入，暂时可导入录屏。";diagnostics += "\n草稿目录创建失败：\(error.localizedDescription)"
         }
         captureReady = ready;captureExplanation = explanation;captureDiagnostics = diagnostics
+        lastPresentedDate = UserDefaults.standard.object(forKey: "lastPresentedResultDate") as? Date ?? .distantPast
+        do {capturePreferences = try CapturePreferencesStore(root: store.root).load()}
+        catch {message = "自动停止设置读取失败，请在首页重新保存设置后再录屏。"}
         refresh()
     }
-    func refresh() { do { sessions = try store.all() } catch { message = error.localizedDescription } }
+    func refresh() {
+        do {let loaded = try store.all();if loaded != sessions {sessions = loaded}}
+        catch {message = error.localizedDescription}
+    }
+    var hasActiveCapture: Bool {sessions.contains {$0.state == .recording || $0.state == .paused}}
     func refreshAndProcess() {
+        guard !busy else {return}
         refresh()
-        guard !busy,let s = sessions.first(where: {$0.state == .ready && !$0.frames.isEmpty && $0.outputs.isEmpty && !attempted.contains($0.id)}) else { return }
-        attempted.insert(s.id); selected = s; export(s.id,crop: s.crop,outer: s.outerCrop)
+        guard let next = ResultInbox.next(in: sessions,after: lastPresentedDate),destination?.id != SessionDestination.result(next).id else {return}
+        destination = .result(next)
+        if next.outputs.isEmpty {export(next.id,crop: next.crop,outer: next.outerCrop)}
+    }
+    func openSession(_ session: SessionManifest) {
+        if session.outputs.isEmpty {
+            if session.state == .ready {markResultPresented(session)}
+            destination = .editor(session)
+        } else {destination = .result(session)}
+    }
+    func markResultPresented(_ session: SessionManifest) {
+        guard session.createdAt > lastPresentedDate else {return}
+        lastPresentedDate = session.createdAt
+        UserDefaults.standard.set(lastPresentedDate,forKey: "lastPresentedResultDate")
+    }
+    @discardableResult func saveCapturePreferences(enabled: Bool,seconds: String) -> Bool {
+        let text = seconds.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",",with: ".")
+        let requested: Double? = enabled ? Double(text) : capturePreferences.idleSeconds
+        guard let interval = requested else {message = "请输入大于 0 的秒数，可使用小数。";return false}
+        do {
+            let value = try CapturePreferences(idleStopEnabled: enabled,idleSeconds: interval).validated()
+            try CapturePreferencesStore(root: store.root).save(value);capturePreferences = value;return true
+        } catch {message = error.localizedDescription;return false}
     }
     func cancel() { operation?.cancel() }
     func importVideo(_ url: URL,removeAfter: Bool = false) {
@@ -65,7 +95,7 @@ import ScrollShotCore
             }
             do {
                 let result = try await withTaskCancellationHandler(operation: {try await worker.value},onCancel: {worker.cancel()})
-                busy = false; refresh(); selected = result; attempted.insert(result.id)
+                busy = false; refresh(); destination = .result(result)
                 export(result.id,crop: result.crop,outer: result.outerCrop)
             } catch {
                 busy = false; refresh()

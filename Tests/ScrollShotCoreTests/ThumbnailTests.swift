@@ -12,6 +12,8 @@ final class ThumbnailTests: XCTestCase {
         let image = try await ThumbnailDecoder.shared.decode(url: url,sourceY: 200,height: 400)
         XCTAssertLessThanOrEqual(image.width,900)
         XCTAssertEqual(image.height,300)
+        let data = try XCTUnwrap(image.dataProvider?.data)
+        XCTAssertLessThanOrEqual((data as Data).count,image.bytesPerRow*image.height,"A visible crop must not keep an entire source image backing buffer")
         do { _ = try await ThumbnailDecoder.shared.decode(url: url,sourceY: 1190,height: 50);XCTFail("Invalid source range accepted") } catch {}
     }
     func testCancelledPreviewDoesNotDecodeOrPublish() async throws {

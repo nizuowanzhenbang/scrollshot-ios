@@ -47,16 +47,17 @@ struct PieceThumbnail: View {
     let url: URL
     let piece: ImagePiece
     let width: Int
+    var maxPixelSize: Int = 900
     @State private var image: UIImage?
     var body: some View {
         Color.clear.aspectRatio(CGFloat(width)/CGFloat(max(1,piece.height)),contentMode: .fit)
             .overlay {
                 if let image { Image(uiImage: image).resizable().scaledToFit() }
                 else { ProgressView() }
-            }.task(id: url.path+"-\(piece.sourceY)-\(piece.height)") {
+            }.task(id: url.path+"-\(piece.sourceY)-\(piece.height)-\(maxPixelSize)") {
                 image = nil
                 do {
-                    let decoded = try await ThumbnailDecoder.shared.decode(url: url,sourceY: piece.sourceY,height: piece.height)
+                    let decoded = try await ThumbnailDecoder.shared.decode(url: url,sourceY: piece.sourceY,height: piece.height,maxPixelSize: maxPixelSize)
                     try Task.checkCancellation()
                     image = UIImage(cgImage: decoded)
                 } catch { image = nil }

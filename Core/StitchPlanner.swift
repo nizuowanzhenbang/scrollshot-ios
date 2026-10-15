@@ -1,5 +1,9 @@
 import Foundation
 public enum StitchPlanner {
+    /// Used by both PNG export and fullscreen preview to share final boundaries.
+    public static func pages(segments: [StitchSegment],outer: CropInsets) throws -> [StitchSegment] {
+        try segments.flatMap {try split(trim($0,top: outer.top,bottom: outer.bottom))}
+    }
     public static func build(records: [FrameRecord], crop: CropInsets) throws -> [StitchSegment] {
         guard crop.top >= 0, crop.bottom >= 0 else { throw ScrollShotError.invalidInput("裁剪范围无效") }
         var result: [StitchSegment] = []

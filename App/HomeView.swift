@@ -7,6 +7,7 @@ struct HomeView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var showFiles = false
+    @State private var showPhotos = false
     @State private var movie: PhotosPickerItem?
     @State private var loadingMovie = false
     var body: some View {
@@ -30,13 +31,14 @@ struct HomeView: View {
                             Button("采集检查"){model.message = model.captureDiagnostics}.font(.caption)
                         }
                     }.padding(18).background(.background,in: RoundedRectangle(cornerRadius: 22))
+                    CaptureSettingsView()
                     #endif
                     VStack(alignment: .leading,spacing: 13) {
                         Label("已有录屏？直接生成长图",systemImage: "film.stack").font(.headline)
                         Text("使用系统录屏记录竖向匀速滚动，再从相册或文件选择视频。采集时避免一次跳过整屏内容。").font(.subheadline).foregroundStyle(.secondary)
                         HStack {
-                            PhotosPicker(selection: $movie,matching: .videos) { Label("从相册选择",systemImage: "photo.on.rectangle") }.buttonStyle(.borderedProminent)
-                            Button {showFiles = true} label: {Label("文件",systemImage: "folder")}.buttonStyle(.bordered)
+                            Button {showPhotos = true} label: { Label("从相册选择",systemImage: "photo.on.rectangle") }.buttonStyle(.borderedProminent)
+                            Button {showFiles = true} label: {Label("文件",systemImage: "folder")}.buttonStyle(.bordered).accessibilityIdentifier("home.import.files")
                         }.disabled(model.busy || loadingMovie)
                         if loadingMovie { ProgressView("正在读取所选视频…").font(.caption) }
                     }.padding(18).background(.background,in: RoundedRectangle(cornerRadius: 22))
@@ -45,7 +47,7 @@ struct HomeView: View {
                         ContentUnavailableView("还没有截图",systemImage: "rectangle.stack.badge.plus",description: Text("开始一次采集，或导入一段录屏。"))
                     }
                     ForEach(model.sessions) { session in
-                        Button {model.selected = session} label: {
+                        Button {model.openSession(session)} label: {
                             HStack(spacing: 14) {
                                 Image(systemName: session.outputs.isEmpty ? "square.stack.3d.up" : "checkmark.rectangle.stack").font(.title2).frame(width: 36)
                                 VStack(alignment: .leading,spacing: 4) {
@@ -56,14 +58,20 @@ struct HomeView: View {
                             }.padding(16).background(.background,in: RoundedRectangle(cornerRadius: 18))
                         }.buttonStyle(.plain)
                     }
-                    Text("轻卷截图 0.1 · 竖向滚动预览版\n目标：iPhone 16 Pro / iOS 18.7.8，等待真机验收。")
+                    Text("轻卷截图 \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2") · 本机处理")
                         .font(.caption2).foregroundStyle(.secondary).padding(.top,6)
                 }.padding(20)
             }.background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("轻卷截图")
             .toolbar {Button {model.refreshAndProcess()} label: {Image(systemName: "arrow.clockwise")}.disabled(model.busy)}
             .safeAreaInset(edge: .bottom) { if model.busy { WorkProgress() } }
-            .sheet(item: $model.selected) { session in NavigationStack {SessionView(session: session).environmentObject(model)} }
+            .fullScreenCover(item: $model.destination) { destination in
+                switch destination {
+                case .editor(let session):NavigationStack {SessionView(session: session).environmentObject(model)}
+                case .result(let session):LongScreenshotView(session: session).environmentObject(model).id(session.id)
+                }
+            }
+            .photosPicker(isPresented: $showPhotos,selection: $movie,matching: .videos)
             .fileImporter(isPresented: $showFiles,allowedContentTypes: [.movie]) { result in
                 switch result {case .success(let url): model.importVideo(url); case .failure(let error): model.message = error.localizedDescription}
             }
@@ -77,9 +85,17 @@ struct HomeView: View {
                     loadingMovie = false; movie = nil
                 }
             }
-            .onChange(of: scenePhase) { _,phase in if phase == .active {model.refreshAndProcess()} }
-            .task {model.refreshAndProcess()}
-            .alert("轻卷截图",isPresented: Binding(get: {model.message != nil},set: {if !$0 {model.message = nil}})) {Button("知道了"){model.message = nil}} message: {Text(model.message ?? "")}
+            .task(id: scenePhase) {
+                guard scenePhase == .active else {return}
+                var quietPolls = 0
+                while !Task.isCancelled {
+                    if !showFiles && !showPhotos && !loadingMovie {model.refreshAndProcess()}
+                    quietPolls = model.hasActiveCapture || model.busy ? 0 : quietPolls+1
+                    if quietPolls >= 15 {return}
+                    do {try await Task.sleep(for: .seconds(1))} catch {return}
+                }
+            }
+            .alert("轻卷截图",isPresented: Binding(get: {model.message != nil && model.destination?.id == nil},set: {if !$0 {model.message = nil}})) {Button("知道了"){model.message = nil}} message: {Text(model.message ?? "")}
         }
     }
 }

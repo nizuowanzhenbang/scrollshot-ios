@@ -25,7 +25,7 @@ public struct FrameRecord: Codable, Sendable, Equatable {
 }
 public enum SessionState: String, Codable, Sendable { case recording, paused, ready, interrupted, failed }
 public enum CaptureFinishReason: String, Codable, Sendable {case manual,idle,failed}
-public struct SessionManifest: Codable, Identifiable, Sendable {
+public struct SessionManifest: Codable, Identifiable, Sendable, Equatable {
     public var id: UUID
     public var createdAt: Date
     public var updatedAt: Date

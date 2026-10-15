@@ -13,18 +13,21 @@ public final class CapturePipeline {
     private var scene = 0
     private var heartbeat = Date.distantPast
     public init(store: SessionStore) throws { self.store = store; manifest = try store.create() }
-    public func process(image: CIImage,timestamp: Double) throws {
-        guard manifest.state == .recording, gate.accept(timestamp: timestamp) else { return }
+    @discardableResult public func process(image: CIImage,timestamp: Double) throws -> ScrollActivity? {
+        guard manifest.state == .recording, gate.accept(timestamp: timestamp) else { return nil }
         let started = Date()
         let image = FrameImaging.normalized(image)
         guard image.extent.height > image.extent.width else { throw ScrollShotError.unavailable("当前版本请保持竖屏采集；已有内容已保留。") }
         let gray = try imaging.gray(image)
         var shouldWrite = previous == nil
+        var activity = ScrollActivity.stationary
         if let previous {
             if let match = Matcher.motion(previous: previous,current: gray,topInset: gray.height/8,bottomInset: gray.height/10) {
+                if match.displacement != 0 {activity = .scrolling}
                 position += Double(match.displacement)*image.extent.width/Double(gray.width)
                 shouldWrite = position-(lastStoredPosition ?? position) >= image.extent.height*0.08
             } else if Matcher.difference(previous,gray) > 0.015 {
+                activity = .uncertain
                 scene += 1; position = 0; lastStoredPosition = nil; shouldWrite = true
                 if !manifest.warnings.contains("部分画面缺少可靠重叠，已分为独立片段。") { manifest.warnings.append("部分画面缺少可靠重叠，已分为独立片段。") }
             }
@@ -33,6 +36,7 @@ public final class CapturePipeline {
         if shouldWrite { try storeTail() }
         manifest.maxProcessingMs = max(manifest.maxProcessingMs,Date().timeIntervalSince(started)*1000)
         if Date().timeIntervalSince(heartbeat) >= 2 { try store.save(manifest); heartbeat = Date() }
+        return activity
     }
     private func storeTail() throws {
         guard let tail else { return }
@@ -51,8 +55,8 @@ public final class CapturePipeline {
         manifest.state = .recording; gate = SamplerGate(); previous = nil; tail = nil
         scene += 1; position = 0; lastStoredPosition = nil; try store.save(manifest)
     }
-    public func finish(state: SessionState = .ready) throws {
+    public func finish(state: SessionState = .ready,reason: CaptureFinishReason? = nil) throws {
         if let lastStoredPosition, position-lastStoredPosition >= 1 { try storeTail() }
-        manifest.state = state; tail = nil; previous = nil; try store.save(manifest)
+        manifest.state = state; manifest.finishReason = reason; tail = nil; previous = nil; try store.save(manifest)
     }
 }
