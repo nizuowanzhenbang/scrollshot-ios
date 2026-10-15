@@ -5,7 +5,7 @@ import CoreGraphics
 final class PNGTests: XCTestCase {
     func testRGBAAndRowOrderRoundTripAcrossAppends() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString+".png")
-        defer { try? FileManager.default.removeItem(at: url) }
+        defer { if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) } }
         let bytes: [UInt8] = [255,0,0,255, 0,255,0,255, 0,0,255,255, 255,255,0,255, 12,34,56,128, 0,0,0,0]
         let writer = try PNGWriter(url: url,width: 2,height: 3)
         try writer.append(rgba: Data(bytes[0..<8]),rowCount: 1)

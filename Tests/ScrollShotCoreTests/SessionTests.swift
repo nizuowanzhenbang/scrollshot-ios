@@ -3,7 +3,7 @@ import XCTest
 final class SessionTests: XCTestCase {
     func testAtomicRoundTripAndIndependentSessions() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
+        defer { if FileManager.default.fileExists(atPath: root.path) { try? FileManager.default.removeItem(at: root) } }
         let store = try SessionStore(root: root)
         var a = try store.create(); let b = try store.create()
         a.frames = [FrameRecord(fileName: "0.jpg",width: 40,height: 100,offsetY: 0,timestamp: 0)]
@@ -18,7 +18,7 @@ final class SessionTests: XCTestCase {
     }
     func testFramePathCannotEscapeSession() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: root) }
+        defer { if FileManager.default.fileExists(atPath: root.path) { try? FileManager.default.removeItem(at: root) } }
         let store = try SessionStore(root: root); let session = try store.create()
         XCTAssertThrowsError(try store.writeFrame(Data([1]),fileName: "../outside",session: session.id))
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("outside").path))
