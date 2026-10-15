@@ -45,7 +45,7 @@ import ScrollShotCore
         captureReady = ready;captureExplanation = explanation;captureDiagnostics = diagnostics
         lastPresentedDate = UserDefaults.standard.object(forKey: "lastPresentedResultDate") as? Date ?? .distantPast
         do {capturePreferences = try CapturePreferencesStore(root: store.root).load()}
-        catch {message = "自动停止设置读取失败，请在首页重新保存设置后再录屏。"}
+        catch {message = "自动停止设置读取失败，请在设置中重新保存后再录屏。"}
         do {toolPreferences = try ToolPreferencesStore(root:store.root).load()}
         catch {message = "设置读取失败，请重新保存设置。"}
         refresh()

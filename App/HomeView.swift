@@ -45,7 +45,7 @@ struct HomeView:View {
                     Button {showSettings=true} label:{Image(systemName:"gearshape")}.accessibilityLabel("设置").accessibilityIdentifier("home.settings")
                 }
                 .safeAreaInset(edge:.bottom) {if model.busy {WorkProgress()}}
-                .sheet(isPresented:$showSettings) {SettingsView().environmentObject(model)}
+                .sheet(isPresented:$showSettings,onDismiss:{model.refreshAndProcess()}) {SettingsView().environmentObject(model)}
                 .fullScreenCover(item:$model.destination) {destination in
                     switch destination {
                     case .editor(let session):NavigationStack {SessionView(session:session).environmentObject(model)}
