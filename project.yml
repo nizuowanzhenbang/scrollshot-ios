@@ -24,6 +24,7 @@ targets:
     dependencies:
       - package: ScrollShotCore
       - target: BroadcastExtension
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nizuowanzhenbang.scrollshot
@@ -80,8 +81,7 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.broadcast-services-upload
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
-          NSExtensionAttributes:
-            RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+          RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
 schemes:
   ScrollShot:
     build:
