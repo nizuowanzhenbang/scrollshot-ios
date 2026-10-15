@@ -63,6 +63,18 @@ final class ImageToolsTests: XCTestCase {
         let q=CGDataProvider(data:Data(pixels) as CFData)!
         let bar=CGImage(width:w,height:h,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:w*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.last.rawValue),provider:q,decode:nil,shouldInterpolate:false,intent:.defaultIntent)!
         XCTAssertFalse(ScrollbarCleaner.detect(bar).isEmpty)
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at:root)}
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let input=root.appendingPathComponent("bar.png"),destination=CGImageDestinationCreateWithURL(input as CFURL,"public.png" as CFString,1,nil)!
+        CGImageDestinationAddImage(destination,bar,nil);XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let segment=try StitchPlanner.build(records:[FrameRecord(fileName:"bar.png",width:w,height:h,offsetY:0,timestamp:0)],crop:CropInsets())[0]
+        for enabled in [false,true] {
+            let output=try RasterExporter.export(segment:segment,edit:PageEdit(),removeScrollbar:enabled,directory:root,outputDirectory:root.appendingPathComponent(enabled ? "clean":"kept"),page:0,progress:{_ in})
+            let image=try FrameImaging.load(output.output),data=try XCTUnwrap(image.dataProvider?.data) as Data
+            XCTAssertEqual(data[150*image.bytesPerRow+395*4],enabled ? 245:100)
+            XCTAssertEqual(data[150*image.bytesPerRow+380*4],245,"Neighbor content must remain unchanged")
+        }
     }
     func testDeletionRefusesActiveSessionAndRemovesFinishedDraft() throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -7,7 +7,9 @@ import ScrollShotCore
     @Published var sessions: [SessionManifest] = []
     @Published var destination: SessionDestination?
     @Published var capturePreferences = CapturePreferences()
+    @Published var toolPreferences = ToolPreferences()
     @Published var busy = false
+    @Published var savingPhotos=false
     @Published var progress = 0.0
     @Published var phase = ""
     @Published var message: String?
@@ -44,6 +46,8 @@ import ScrollShotCore
         lastPresentedDate = UserDefaults.standard.object(forKey: "lastPresentedResultDate") as? Date ?? .distantPast
         do {capturePreferences = try CapturePreferencesStore(root: store.root).load()}
         catch {message = "自动停止设置读取失败，请在首页重新保存设置后再录屏。"}
+        do {toolPreferences = try ToolPreferencesStore(root:store.root).load()}
+        catch {message = "设置读取失败，请重新保存设置。"}
         refresh()
     }
     func refresh() {
@@ -52,7 +56,7 @@ import ScrollShotCore
     }
     var hasActiveCapture: Bool {sessions.contains {$0.state == .recording || $0.state == .paused}}
     func refreshAndProcess() {
-        guard !busy else {return}
+        guard !busy,!savingPhotos else {return}
         refresh()
         guard let next = ResultInbox.next(in: sessions,after: lastPresentedDate),destination?.id != SessionDestination.result(next).id else {return}
         destination = .result(next)
@@ -79,8 +83,32 @@ import ScrollShotCore
         } catch {message = error.localizedDescription;return false}
     }
     func cancel() { operation?.cancel() }
+    @discardableResult func saveTools(_ value:ToolPreferences)->Bool {
+        do {try ToolPreferencesStore(root:store.root).save(value);toolPreferences=value;return true}
+        catch {message=error.localizedDescription;return false}
+    }
+    func delete(_ session:SessionManifest) {
+        guard !busy,!savingPhotos else {message="请等待当前任务或相册保存完成后删除";return}
+        do {try store.delete(session.id);refresh()} catch {message=error.localizedDescription}
+    }
+    func compress(_ id:UUID,completion:@escaping(Bool)->Void) {
+        guard !busy,!savingPhotos else {return}
+        busy=true;progress=0;phase="压缩图片，保留原图"
+        let store=store
+        operation=Task {
+            let worker=Task.detached(priority:.userInitiated) {
+                let session=try store.load(id)
+                if session.renderedTiles?.isEmpty != false {
+                    try ExportService.generate(id:id,store:store,crop:session.crop,outer:session.outerCrop,edits:session.pageEdits ?? [],removeScrollbar:session.scrollbarRemoval ?? false,progress:{_ in})
+                }
+                return try CompressionService.generate(id:id,store:store)
+            }
+            do {_ = try await withTaskCancellationHandler(operation:{try await worker.value},onCancel:{worker.cancel()});busy=false;progress=1;refresh();completion(true)}
+            catch {busy=false;refresh();message=error is CancellationError ? "已取消压缩，原图仍在。":error.localizedDescription;completion(false)}
+        }
+    }
     func importVideo(_ url: URL,removeAfter: Bool = false) {
-        guard !busy else { return }
+        guard !busy,!savingPhotos else { return }
         busy = true; progress = 0; phase = "读取录屏画面"
         let store = store
         operation = Task {
@@ -103,14 +131,15 @@ import ScrollShotCore
             }
         }
     }
-    func export(_ id: UUID,crop: CropInsets,outer: CropInsets) {
-        guard !busy else { return }
+    func export(_ id: UUID,crop: CropInsets,outer: CropInsets,edits:[PageEdit] = [],removeScrollbar:Bool? = nil) {
+        guard !busy,!savingPhotos else { return }
         busy = true; progress = 0; phase = "复核重叠与拼接"
         let store = store
+        let clean=removeScrollbar ?? toolPreferences.smartScrollbar
         operation = Task {
             let report: @Sendable(Double)->Void = { [weak self] p in Task { @MainActor in self?.progress = p } }
             let worker = Task.detached(priority: .userInitiated) {
-                try ExportService.generate(id: id,store: store,crop: crop,outer: outer,progress: report)
+                try ExportService.generate(id:id,store:store,crop:crop,outer:outer,edits:edits,removeScrollbar:clean,progress:report)
             }
             do {
                 try await withTaskCancellationHandler(operation: {try await worker.value},onCancel: {worker.cancel()})
@@ -124,9 +153,9 @@ import ScrollShotCore
     func recover(_ session: SessionManifest) {
         do { try store.recover(session,currentlyCapturing: UIScreen.main.isCaptured); refresh() } catch { message = error.localizedDescription }
     }
-    func outputURLs(_ session: SessionManifest) -> [URL] {
+    func outputURLs(_ session: SessionManifest,compressed:Bool = false) -> [URL] {
         let root = store.directory(for: session.id).standardizedFileURL
-        return session.outputs.compactMap { name in
+        return (compressed ? (session.compressedOutputs ?? []):session.outputs).compactMap { name in
             let url = root.appendingPathComponent(name).standardizedFileURL
             guard url.path.hasPrefix(root.path+"/"),FileManager.default.fileExists(atPath: url.path) else { return nil }
             return url

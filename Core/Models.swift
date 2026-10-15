@@ -52,6 +52,7 @@ public struct ImagePiece: Sendable, Equatable {
     public var sourceY: Int
     public var height: Int
     public var destinationY: Int
+    public init(fileName:String,sourceY:Int,height:Int,destinationY:Int) {self.fileName=fileName;self.sourceY=sourceY;self.height=height;self.destinationY=destinationY}
 }
 public struct StitchSegment: Sendable {
     public var width: Int

@@ -11,6 +11,7 @@ struct SessionView: View {
     @State private var finalBottom = 0
     @State private var sharing = false
     @State private var saving = false
+    @State private var imageEditing=false
     private var current: SessionManifest {model.sessions.first(where: {$0.id == session.id}) ?? session}
     private var segments: [StitchSegment] { (try? StitchPlanner.build(records: current.previewFrames.isEmpty ? current.frames : current.previewFrames,crop: CropInsets(top: top,bottom: bottom))) ?? [] }
     private enum PreviewRow: Identifiable {
@@ -42,22 +43,21 @@ struct SessionView: View {
                         cropSlider("上边界",value: $finalTop,max: 800)
                         cropSlider("下边界",value: $finalBottom,max: 800)
                     }.font(.subheadline)
+                    if current.pageEdits?.contains(where:{$0.crop != nil || !$0.mosaics.isEmpty}) == true {Text("重新拼接会清除图片裁剪和马赛克；请在最终拼接后再编辑图片。 ").font(.caption).foregroundStyle(.orange)}
                     Button {model.export(current.id,crop: CropInsets(top: top,bottom: bottom),outer: CropInsets(top: finalTop,bottom: finalBottom))} label: {
                         Label(current.outputs.isEmpty ? "生成长截图" : "按当前范围重新生成",systemImage: "rectangle.stack.badge.plus").frame(maxWidth: .infinity)
                     }.buttonStyle(.borderedProminent).disabled(model.busy || current.frames.isEmpty || current.state == .recording || current.state == .paused)
                 }.padding(16).background(.background,in: RoundedRectangle(cornerRadius: 18))
                 if !current.outputs.isEmpty {
+                    Button("马赛克与裁剪图片"){imageEditing=true}.buttonStyle(.bordered).disabled(model.busy)
                     HStack {
                         Button {sharing = true} label: {Label("分享文件",systemImage: "square.and.arrow.up")}.buttonStyle(.borderedProminent)
-                        Button {
-                            saving = true
-                            Task { do {try await PhotoSaver.save(model.outputURLs(current)); model.message = "已保存到相册。"} catch {model.message = error.localizedDescription}; saving = false }
-                        } label: {Label(saving ? "保存中" : "保存相册",systemImage: "square.and.arrow.down")}.buttonStyle(.bordered)
+                        ImageSaveControl(session:current,floating:false,compressRequested:.constant(false)).buttonStyle(.bordered)
                     }.disabled(saving || model.busy)
                     Text("已生成 \(current.outputs.count) 张 PNG。超长内容和不连续画面会分别输出。").font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(current.warnings,id: \.self) {Text($0).font(.caption).foregroundStyle(.orange)}
-                HStack {Text("拼接内容预览").font(.headline); Spacer(); Text("\(current.frames.count) 帧").font(.caption).foregroundStyle(.secondary)}
+                HStack {Text("原始拼接预览").font(.headline); Spacer(); Text("\(current.frames.count) 帧").font(.caption).foregroundStyle(.secondary)}
                 LazyVStack(spacing: 0) {
                     ForEach(previewRows) { row in
                         switch row {
@@ -68,7 +68,7 @@ struct SessionView: View {
                         }
                     }
                 }
-                Text("预览使用缩略图以降低内存，保存与分享的 PNG 保留采集图像宽度。最终边界裁剪以生成结果为准。")
+                Text("此处显示原始拼接素材，不含图片马赛克。请在全屏结果查看最终裁剪、马赛克及滚动条处理；保存与分享使用实际生成文件。")
                     .font(.caption2).foregroundStyle(.secondary)
             }.padding(18)
         }.background(Color(uiColor: .systemGroupedBackground))
@@ -76,6 +76,7 @@ struct SessionView: View {
         .toolbar {Button("关闭"){dismiss()}}
         .safeAreaInset(edge: .bottom) {if model.busy {WorkProgress()}}
         .sheet(isPresented: $sharing) {ShareFiles(urls: model.outputURLs(current))}
+        .sheet(isPresented:$imageEditing) {ImageEditorView(session:current).environmentObject(model)}
         .onAppear {top = current.crop.top; bottom = current.crop.bottom; finalTop = current.outerCrop.top; finalBottom = current.outerCrop.bottom}
         .alert("轻卷截图",isPresented: Binding(get: {model.message != nil},set: {if !$0 {model.message = nil}})) {Button("知道了"){model.message = nil}} message: {Text(model.message ?? "")}
     }

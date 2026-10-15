@@ -2,9 +2,11 @@ import ReplayKit
 import CoreImage
 import ImageIO
 import ScrollShotCore
+import AudioToolbox
 
 final class SampleHandler: RPBroadcastSampleHandler {
     private var recording: RecordingSession?
+    private var feedback:CaptureFeedbackGate?
     override func broadcastStarted(withSetupInfo setupInfo: [String : NSObject]?) {
         do {
             let access = CaptureAccess.inspect(bundleURL: Bundle.main.bundleURL) {FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0)}
@@ -12,14 +14,19 @@ final class SampleHandler: RPBroadcastSampleHandler {
                 throw ScrollShotError.unavailable(access.diagnostics)
             }
             let preferences = try CapturePreferencesStore(root: container.drafts).load()
+            let tools=(try? ToolPreferencesStore(root:container.drafts).load()) ?? ToolPreferences()
+            let feedback=CaptureFeedbackGate(enabled:tools.haptics) {AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)}
+            self.feedback=feedback
             recording = try RecordingSession(store: SessionStore(root: container.drafts),preferences: preferences) {[weak self] completion in
                 let text: String,code: Int
                 switch completion {
                 case .idle:text = "已停滑 \(preferences.effectiveIdleSeconds) 秒，截图已完成。返回轻卷截图查看。";code = 0
                 case .failed(let message):text = message;code = 1
                 }
+                feedback.stop()
                 self?.finishBroadcastWithError(NSError(domain: "ScrollShot.Recording",code: code,userInfo: [NSLocalizedDescriptionKey:text]))
             }
+            feedback.start()
         } catch { stop(error) }
     }
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer,with sampleBufferType: RPSampleBufferType) {
@@ -35,8 +42,9 @@ final class SampleHandler: RPBroadcastSampleHandler {
     }
     override func broadcastPaused() { do { try recording?.pause() } catch { stop(error) } }
     override func broadcastResumed() { do { try recording?.resume() } catch { stop(error) } }
-    override func broadcastFinished() { try? recording?.finish(); recording = nil }
+    override func broadcastFinished() {feedback?.stop();try? recording?.finish();recording=nil}
     private func stop(_ error: Error) {
+        feedback?.stop()
         try? recording?.finish(state: .interrupted,reason: .failed); recording = nil
         finishBroadcastWithError(error as NSError)
     }

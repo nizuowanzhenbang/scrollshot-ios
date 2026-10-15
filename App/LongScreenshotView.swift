@@ -6,8 +6,8 @@ struct LongScreenshotView: View {
     @Environment(\.dismiss) private var dismiss
     let session: SessionManifest
     @State private var editing = false
-    @State private var saving = false
-    @State private var saved = false
+    @State private var imageEditing=false
+    @State private var compressRequested=false
     private struct Row: Identifiable {
         let id: String
         let width: Int
@@ -16,6 +16,9 @@ struct LongScreenshotView: View {
     private var current: SessionManifest {model.sessions.first {$0.id == session.id} ?? session}
     private var rows: [Row] {
         let value = current
+        if let tiles=value.renderedTiles,!tiles.isEmpty {
+            return tiles.enumerated().map {index,tile in Row(id:"tile-\(index)-\(tile.fileName)",width:tile.width,piece:ImagePiece(fileName:tile.fileName,sourceY:0,height:tile.height,destinationY:tile.offsetY))}
+        }
         let records = value.previewFrames.isEmpty ? value.frames : value.previewFrames
         guard let segments = try? StitchPlanner.build(records: records,crop: value.crop),
               let pages = try? StitchPlanner.pages(segments: segments,outer: value.outerCrop) else {return []}
@@ -56,36 +59,20 @@ struct LongScreenshotView: View {
                 Button {dismiss()} label: {Image(systemName: "xmark").frame(width: 44,height: 44).background(.ultraThinMaterial,in: Circle())}
                     .accessibilityLabel("关闭全屏预览").accessibilityIdentifier("result.close")
                 Spacer()
-                Button("调整"){editing = true}.font(.subheadline.bold()).padding(.horizontal,18).frame(height: 44).background(.ultraThinMaterial,in: Capsule())
+                Menu {
+                    Button("马赛克与裁剪",systemImage:"square.on.square"){imageEditing=true}.accessibilityIdentifier("tools.image")
+                    Button("压缩图片",systemImage:"arrow.down.right.and.arrow.up.left"){compressRequested=true}.disabled(model.busy)
+                    Button("调整拼接与分享",systemImage:"slider.horizontal.3"){editing=true}
+                } label:{Text("工具").font(.subheadline.bold()).padding(.horizontal,18).frame(height:44).background(.ultraThinMaterial,in:Capsule())}.accessibilityIdentifier("result.tools").disabled(model.busy || model.savingPhotos || current.outputs.isEmpty)
             }.foregroundStyle(.white).padding(.horizontal,18).padding(.top,10)
         }
         .overlay(alignment: .bottomTrailing) {
-            Button(action: save) {
-                Group {
-                    if saving {ProgressView().tint(.white)}
-                    else {Image(systemName: saved ? "checkmark" : "square.and.arrow.down").font(.title3.bold())}
-                }.frame(width: 54,height: 54).background(.blue,in: Circle()).shadow(color: .black.opacity(0.35),radius: 8,y: 3)
-            }.foregroundStyle(.white).padding(20)
-                .disabled(saving || model.busy || model.outputURLs(current).isEmpty)
-                .accessibilityLabel("保存到相册").accessibilityIdentifier("result.save")
-        }
-        .overlay(alignment: .bottom) {
-            if saved {Text("已保存到相册").font(.subheadline.bold()).padding(.horizontal,18).padding(.vertical,12).background(.ultraThinMaterial,in: Capsule()).padding(.bottom,90).accessibilityIdentifier("result.saved")}
+            ImageSaveControl(session:current,compressRequested:$compressRequested).padding(20)
         }
         .onAppear {model.markResultPresented(session)}
-        .task(id: saved) {if saved {try? await Task.sleep(for: .seconds(3));if !Task.isCancelled {saved = false}}}
         .sheet(isPresented: $editing) {NavigationStack {SessionView(session: current).environmentObject(model)}.foregroundStyle(.primary)}
-        .alert("轻卷截图",isPresented: Binding(get: {model.message != nil && !editing},set: {if !$0 {model.message = nil}})) {Button("知道了"){model.message = nil}} message: {Text(model.message ?? "")}
-    }
-    @MainActor private func save() {
-        guard !saving else {return}
-        let urls = model.outputURLs(current)
-        guard !urls.isEmpty else {return}
-        saving = true
-        Task {
-            do {try await PhotoSaver.save(urls);saved = true}
-            catch {model.message = error.localizedDescription}
-            saving = false
-        }
+        .sheet(isPresented:$imageEditing) {ImageEditorView(session:current).environmentObject(model).foregroundStyle(.primary)}
+        .overlay(alignment:.bottom) {if model.busy && !current.outputs.isEmpty {WorkProgress().padding(.bottom,84)}}
+        .alert("轻卷截图",isPresented: Binding(get: {model.message != nil && !editing && !imageEditing},set: {if !$0 {model.message = nil}})) {Button("知道了"){model.message = nil}} message: {Text(model.message ?? "")}
     }
 }
