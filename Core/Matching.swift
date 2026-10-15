@@ -13,6 +13,25 @@ public struct Match: Sendable {
     public let confidence: Double
 }
 public enum Matcher {
+    /// Fixed controls can dominate the global zero-shift score. Require agreement
+    /// from two overlapping content regions before preferring nonzero motion.
+    public static func motion(previous: GrayFrame,current: GrayFrame,topInset: Int,bottomInset: Int) -> Match? {
+        let base = match(previous: previous,current: current,topInset: topInset,bottomInset: bottomInset)
+        if let base, base.displacement != 0 { return base }
+        guard difference(previous,current) > 0.004 else { return base }
+        let h = previous.height
+        let regions = [(max(topInset,h/3),bottomInset),(max(topInset,h/2),bottomInset),(topInset,max(bottomInset,h/3))]
+        let moving = regions.compactMap { top,bottom -> Match? in
+            guard let candidate = match(previous: previous,current: current,topInset: top,bottomInset: bottom),
+                  abs(candidate.displacement) >= 2,candidate.confidence >= 0.5,candidate.error < 0.04 else { return nil }
+            return candidate
+        }
+        for candidate in moving {
+            if moving.filter({abs($0.displacement-candidate.displacement) <= 2}).count >= 2 { return candidate }
+        }
+        // Unexplained visible changes must remain recoverable as a separate scene.
+        return difference(previous,current) > 0.015 ? nil : base
+    }
     /// Positive displacement means content moved upward: the viewport scrolled down.
     public static func match(previous: GrayFrame, current: GrayFrame, topInset: Int = 0, bottomInset: Int = 0, expected: Int? = nil) -> Match? {
         let w = previous.width, h = previous.height

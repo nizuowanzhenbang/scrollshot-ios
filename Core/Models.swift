@@ -30,6 +30,7 @@ public struct SessionManifest: Codable, Identifiable, Sendable {
     public var updatedAt: Date
     public var state: SessionState
     public var frames: [FrameRecord]
+    public var previewFrames: [FrameRecord] = []
     public var crop: CropInsets
     public var outerCrop: CropInsets
     public var warnings: [String]

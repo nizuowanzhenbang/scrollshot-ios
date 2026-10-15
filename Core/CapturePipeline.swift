@@ -21,7 +21,7 @@ public final class CapturePipeline {
         let gray = try imaging.gray(image)
         var shouldWrite = previous == nil
         if let previous {
-            if let match = Matcher.match(previous: previous,current: gray,topInset: gray.height/8,bottomInset: gray.height/10) {
+            if let match = Matcher.motion(previous: previous,current: gray,topInset: gray.height/8,bottomInset: gray.height/10) {
                 position += Double(match.displacement)*image.extent.width/Double(gray.width)
                 shouldWrite = position-(lastStoredPosition ?? position) >= image.extent.height*0.08
             } else if Matcher.difference(previous,gray) > 0.015 {

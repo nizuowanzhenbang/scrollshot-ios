@@ -45,21 +45,20 @@ enum PhotoSaver {
 struct PieceThumbnail: View {
     let url: URL
     let piece: ImagePiece
+    let width: Int
     @State private var image: UIImage?
     var body: some View {
-        Group {
-            if let image { Image(uiImage: image).resizable().scaledToFit() }
-            else { ProgressView().frame(height: 80) }
-        }.task(id: url.path+"-\(piece.sourceY)-\(piece.height)") {
-            image = await Task.detached(priority: .utility) {
-                guard let source = CGImageSourceCreateWithURL(url as CFURL,nil),
-                      let thumbnail = CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:900,kCGImageSourceCreateThumbnailWithTransform:true] as CFDictionary),
-                      let properties = CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],let originalHeight = properties[kCGImagePropertyPixelHeight] as? Int else { return nil as UIImage? }
-                let scale = Double(thumbnail.height)/Double(originalHeight)
-                let rect = CGRect(x: 0,y: Double(piece.sourceY)*scale,width: Double(thumbnail.width),height: Double(piece.height)*scale).integral
-                guard let cut = thumbnail.cropping(to: rect) else { return nil }
-                return UIImage(cgImage: cut)
-            }.value
-        }
+        Color.clear.aspectRatio(CGFloat(width)/CGFloat(max(1,piece.height)),contentMode: .fit)
+            .overlay {
+                if let image { Image(uiImage: image).resizable().scaledToFit() }
+                else { ProgressView() }
+            }.task(id: url.path+"-\(piece.sourceY)-\(piece.height)") {
+                image = nil
+                do {
+                    let decoded = try await ThumbnailDecoder.shared.decode(url: url,sourceY: piece.sourceY,height: piece.height)
+                    try Task.checkCancellation()
+                    image = UIImage(cgImage: decoded)
+                } catch { image = nil }
+            }.onDisappear {image = nil}
     }
 }

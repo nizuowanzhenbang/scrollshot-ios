@@ -21,8 +21,11 @@ public final class SessionStore: @unchecked Sendable {
         return try JSONDecoder().decode(SessionManifest.self,from: data)
     }
     public func recover(_ snapshot: SessionManifest,currentlyCapturing: Bool,now: Date = Date()) throws {
-        guard now.timeIntervalSince(snapshot.updatedAt) > 10 else { throw ScrollShotError.unavailable("采集仍在更新，请先停止录屏。") }
-        var session = snapshot; session.state = .interrupted; try save(session)
+        guard !currentlyCapturing else { throw ScrollShotError.unavailable("系统仍在录屏，请先停止录屏。") }
+        var session = try load(snapshot.id)
+        guard session.state == .recording || session.state == .paused else { return }
+        guard now.timeIntervalSince(session.updatedAt) > 10 else { throw ScrollShotError.unavailable("采集仍在更新，请先停止录屏。") }
+        session.state = .interrupted; try save(session)
     }
     public func all() throws -> [SessionManifest] {
         try FileManager.default.contentsOfDirectory(at: root,includingPropertiesForKeys: nil)

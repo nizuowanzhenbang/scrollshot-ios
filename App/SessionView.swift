@@ -12,7 +12,16 @@ struct SessionView: View {
     @State private var sharing = false
     @State private var saving = false
     private var current: SessionManifest {model.sessions.first(where: {$0.id == session.id}) ?? session}
-    private var segments: [StitchSegment] { (try? StitchPlanner.build(records: current.frames,crop: CropInsets(top: top,bottom: bottom))) ?? [] }
+    private var segments: [StitchSegment] { (try? StitchPlanner.build(records: current.previewFrames.isEmpty ? current.frames : current.previewFrames,crop: CropInsets(top: top,bottom: bottom))) ?? [] }
+    private enum PreviewRow: Identifiable {
+        case heading(Int,Int,Int), piece(Int,Int,ImagePiece,Int)
+        var id: String { switch self { case .heading(let i,_,_): return "header-\(i)"; case .piece(let i,let j,_,_): return "piece-\(i)-\(j)" } }
+    }
+    private var previewRows: [PreviewRow] {
+        segments.enumerated().flatMap { index,segment in
+            [PreviewRow.heading(index,segment.width,segment.height)] + segment.pieces.enumerated().map { PreviewRow.piece(index,$0.offset,$0.element,segment.width) }
+        }
+    }
     private var limit: Int {min(800,max(1,(current.frames.first?.height ?? 600)/3))}
     var body: some View {
         ScrollView {
@@ -49,14 +58,14 @@ struct SessionView: View {
                 }
                 ForEach(current.warnings,id: \.self) {Text($0).font(.caption).foregroundStyle(.orange)}
                 HStack {Text("拼接内容预览").font(.headline); Spacer(); Text("\(current.frames.count) 帧").font(.caption).foregroundStyle(.secondary)}
-                LazyVStack(spacing: 18) {
-                    ForEach(Array(segments.enumerated()),id: \.offset) { index,segment in
-                        VStack(spacing: 0) {
-                            HStack {Text("片段 \(index+1)"); Spacer(); Text("\(segment.width) × \(segment.height)")}.font(.caption.monospacedDigit()).foregroundStyle(.secondary).padding(.bottom,8)
-                            ForEach(Array(segment.pieces.enumerated()),id: \.offset) { _,piece in
-                                PieceThumbnail(url: model.store.directory(for: current.id).appendingPathComponent(piece.fileName),piece: piece)
-                            }
-                        }.padding(10).background(.background,in: RoundedRectangle(cornerRadius: 12))
+                LazyVStack(spacing: 0) {
+                    ForEach(previewRows) { row in
+                        switch row {
+                        case .heading(let index,let width,let height):
+                            HStack {Text("片段 \(index+1)"); Spacer(); Text("\(width) × \(height)")}.font(.caption.monospacedDigit()).foregroundStyle(.secondary).padding(.vertical,12)
+                        case .piece(_,_,let piece,let width):
+                            PieceThumbnail(url: model.store.directory(for: current.id).appendingPathComponent(piece.fileName),piece: piece,width: width)
+                        }
                     }
                 }
                 Text("预览使用缩略图以降低内存，保存与分享的 PNG 保留采集图像宽度。最终边界裁剪以生成结果为准。")

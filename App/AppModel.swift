@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 import ScrollShotCore
 
 @MainActor final class AppModel: ObservableObject {
@@ -86,8 +87,7 @@ import ScrollShotCore
         }
     }
     func recover(_ session: SessionManifest) {
-        guard Date().timeIntervalSince(session.updatedAt) > 10 else { message = "采集仍在更新，请先通过系统入口停止录屏。"; return }
-        do { var s = session; s.state = .interrupted; try store.save(s); refresh() } catch { message = error.localizedDescription }
+        do { try store.recover(session,currentlyCapturing: UIScreen.main.isCaptured); refresh() } catch { message = error.localizedDescription }
     }
     func outputURLs(_ session: SessionManifest) -> [URL] {
         let root = store.directory(for: session.id).standardizedFileURL
