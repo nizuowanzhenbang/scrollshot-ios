@@ -21,6 +21,13 @@ final class CaptureAccessTests: XCTestCase {
         let ext = try XCTUnwrap(CaptureAccess.select(configured: nil,hostGroups: b,extensionGroups: a,container: {_ in self.root}))
         XCTAssertEqual(main.group,"group.synthetic.a");XCTAssertEqual(main.group,ext.group)
     }
+    func testAsymmetricProcessAccessNeverSilentlySplitsDrafts() throws {
+        let groups = ["group.synthetic.a","group.synthetic.b"]
+        let main = try XCTUnwrap(CaptureAccess.select(configured: nil,hostGroups: groups,extensionGroups: groups,container: {_ in self.root}))
+        let ext = CaptureAccess.select(configured: nil,hostGroups: groups,extensionGroups: groups,container: {$0 == "group.synthetic.b" ? self.root : nil})
+        XCTAssertEqual(main.group,"group.synthetic.a")
+        XCTAssertNil(ext,"An extension may not silently switch to B while the host uses A")
+    }
     func testNeverChoosesGroupUnavailableToEitherProcessOrTheOS() {
         XCTAssertNil(CaptureAccess.select(configured: "group.build.original",hostGroups: ["group.main.only"],extensionGroups: ["group.ext.only"],container: {_ in self.root}))
         XCTAssertNil(CaptureAccess.select(configured: nil,hostGroups: ["group.common"],extensionGroups: ["group.common"],container: {_ in nil}))
