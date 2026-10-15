@@ -4,8 +4,10 @@ final class ResultFlowTests: XCTestCase {
         let app = XCUIApplication();app.launch()
         let save = app.buttons["result.save"]
         XCTAssertTrue(save.waitForExistence(timeout: 20),"A fresh ready draft must automatically open the fullscreen viewer")
+        XCTAssertTrue(app.scrollViews["result.preview"].waitForExistence(timeout: 20))
+        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"),object: save)
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled],timeout: 20),.completed)
         XCTAssertTrue(save.isHittable)
-        XCTAssertTrue(app.scrollViews["result.preview"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot());screenshot.lifetime = .keepAlways;add(screenshot)
         save.tap()
         XCTAssertTrue(app.staticTexts["result.saved"].waitForExistence(timeout: 15),"The floating button must complete a real Photos addition")

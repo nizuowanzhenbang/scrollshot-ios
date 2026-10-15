@@ -3,6 +3,19 @@ import CoreImage
 import CoreGraphics
 @testable import ScrollShotCore
 final class RecordingSessionTests: XCTestCase {
+    func testSubSamplingTimeoutDoesNotStopDuringContinuousScrolling() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {try? FileManager.default.removeItem(at: root)}
+        let store = try SessionStore(root: root),source = fixture(width: 80,height: 600)
+        let session = try RecordingSession(store: store,preferences: CapturePreferences(idleSeconds: 0.01)) {_ in}
+        // ReplayKit delivers every frame; the pipeline samples only every 0.2s.
+        for index in 0..<12 {
+            try session.process(image: image(source,start: index*5),timestamp: Double(index)*0.06)
+            try await Task.sleep(for: .milliseconds(60))
+        }
+        XCTAssertEqual(try store.load(session.id).state,.recording,"Short settings must not expire between sampled moving frames")
+        try session.finish()
+    }
     func testWatchdogFinishesTailWithoutAnyFurtherVideoCallbacks() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer {try? FileManager.default.removeItem(at: root)}
