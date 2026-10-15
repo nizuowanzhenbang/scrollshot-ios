@@ -34,10 +34,11 @@ final class ResultFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["保存原始 PNG"].waitForExistence(timeout:5))
         app.buttons["取消"].tap()
         app.descendants(matching:.any).matching(identifier:"result.tools").firstMatch.tap()
-        XCTAssertTrue(app.buttons["tools.image"].waitForExistence(timeout:5));app.buttons["tools.image"].tap()
+        let imageTool=app.descendants(matching:.any).matching(identifier:"tools.image").firstMatch
+        XCTAssertTrue(imageTool.waitForExistence(timeout:5));imageTool.tap()
         XCTAssertTrue(app.segmentedControls["image.mode"].waitForExistence(timeout:5))
         let imageShot=XCTAttachment(screenshot:app.screenshot());imageShot.name="image-editor";imageShot.lifetime = .keepAlways;add(imageShot)
-        app.buttons["四边裁剪（像素）"].tap()
+        app.descendants(matching:.any).matching(identifier:"image.precise.0").firstMatch.tap()
         let left=app.textFields["image.inset.0.0"]
         XCTAssertTrue(left.waitForExistence(timeout:5));left.coordinate(withNormalizedOffset:CGVector(dx:0.99,dy:0.5)).tap();left.typeText(XCUIKeyboardKey.delete.rawValue+"5")
         app.buttons["image.apply"].tap()
