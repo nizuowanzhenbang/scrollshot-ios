@@ -2,7 +2,7 @@
 import PackageDescription
 let package = Package(
     name: "ScrollShotCore",
-    platforms: [.iOS(.v18), .macOS(.v14)],
+    platforms: [.iOS("18.0"), .macOS(.v14)],
     products: [.library(name: "ScrollShotCore", targets: ["ScrollShotCore"])],
     targets: [
         .target(name: "ScrollShotCore", path: "Core"),
