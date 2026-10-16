@@ -51,6 +51,8 @@ if ! xcodebuild test -project ScrollShot.xcodeproj -scheme ScrollShotImport -des
   tail -90 build/ui-test.log; exit 1
 fi
 xcrun xcresulttool export attachments --path build/ui-tests.xcresult --output-path build/ui-attachments >build/attachment-export.log 2>&1 || true
+# XCTest may reinstall the app and migrate its data to a new container UUID.
+container="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
 python3 - "$container/Documents/Drafts" <<'PY'
 import pathlib,json,sys,struct
 sessions=[(p,json.loads(p.read_bytes())) for p in pathlib.Path(sys.argv[1]).glob('*/session.json')]
