@@ -1,6 +1,11 @@
 name: Build and test iOS
 on:
   workflow_dispatch:
+    inputs:
+      preview_only:
+        description: 'Build a test IPA in one Mac job, without simulator UI tests'
+        type: boolean
+        default: false
   push:
     branches: [main, feat/native]
     paths-ignore: ['docs/**', '**.md']
@@ -11,6 +16,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
+    if: ${{ !inputs.preview_only }}
     runs-on: macos-15
     timeout-minutes: 20
     steps:
@@ -33,6 +39,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Core tests for preview
+        if: ${{ inputs.preview_only }}
+        run: swift test
       - name: Device IPA builds
         shell: bash
         run: bash scripts/build.sh
@@ -49,11 +58,12 @@ jobs:
             build/SHA256SUMS.txt
           retention-days: 3
       - name: Simulator smoke test
+        if: ${{ !inputs.preview_only }}
         timeout-minutes: 15
         shell: bash
         run: bash scripts/simulator-smoke.sh
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && !inputs.preview_only }}
         with:
           name: simulator-evidence
           path: |

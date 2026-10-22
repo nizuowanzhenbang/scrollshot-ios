@@ -39,7 +39,10 @@ public enum Matcher {
               previous.pixels.count == w*h, current.pixels.count == w*h,
               topInset >= 0, bottomInset >= 0, topInset+bottomInset < h-16 else { return nil }
         let top = topInset, bottom = h-bottomInset
-        let xStep = max(1,w/24), yStep = max(1,h/180)
+        // Capture uses a small frame and sparse samples to stay inexpensive.
+        // Export supplies an expected offset and native-height rows: skipping
+        // those rows aliases thin text/repeated separators into false matches.
+        let xStep = max(1,w/24), yStep = expected == nil ? max(1,h/180) : 1
         var sum = 0.0, square = 0.0, count = 0.0
         for y in stride(from: top,to: bottom,by: yStep) {
             for x in stride(from: w/8,to: w-w/8,by: xStep) {
@@ -48,8 +51,13 @@ public enum Matcher {
         }
         guard count > 0, square/count-pow(sum/count,2) > 20 else { return nil }
         let limit = Int(Double(bottom-top)*0.72)
-        let low = max(-limit,(expected ?? 0)-(expected == nil ? limit : 12))
-        let high = min(limit,(expected ?? 0)+(expected == nil ? limit : 12))
+        // Small-frame rounding accumulates between stored frames. Twelve native
+        // pixels is insufficient on tall displays; retain a bounded correction
+        // window proportional to the usable viewport instead of trusting that
+        // estimate as an exact registration.
+        let radius = expected == nil ? limit : max(12,(bottom-top)/16)
+        let low = max(-limit,(expected ?? 0)-radius)
+        let high = min(limit,(expected ?? 0)+radius)
         guard low <= high else { return nil }
         let minimumOverlap = max(16,(bottom-top)/4)
         var scores: [(Int,Double)] = []

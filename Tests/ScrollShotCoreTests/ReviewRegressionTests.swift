@@ -4,6 +4,38 @@ import CoreGraphics
 @testable import ScrollShotCore
 
 final class ReviewRegressionTests: XCTestCase {
+    func testNativeRefinementAndExportKeepEveryRowAcrossAnEstimatedSeam() throws {
+        let root = temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root,withIntermediateDirectories: true)
+        let w = 64, h = 2400, shift = 220
+        var source = fixture(width: w,height: h+shift)
+        for y in 0..<(h+shift) {
+            for x in 0..<w where y % 13 != 4 {
+                source[y*w+x] = UInt8(20+(y%40)*4+(x*7)%30)
+            }
+        }
+        var records: [FrameRecord] = []
+        for (i,start) in [0,shift].enumerated() {
+            let name = "\(i).png", writer = try PNGWriter(url: root.appendingPathComponent(name),width: w,height: h)
+            let rgba = source[(start*w)..<((start+h)*w)].flatMap {[$0,$0,$0,255] as [UInt8]}
+            try writer.append(rgba: Data(rgba),rowCount: h); try writer.finish()
+            records.append(FrameRecord(fileName: name,width: w,height: h,offsetY: i*180,timestamp: Double(i)))
+        }
+        let crop = CropInsets(top: 300,bottom: 240)
+        let refined = try Refinement.records(records,directory: root,crop: crop,progress: {_ in})
+        XCTAssertEqual(refined.map(\.offsetY),[0,shift])
+        let segments = try StitchPlanner.build(records: refined,crop: crop)
+        XCTAssertEqual(segments.count,1)
+        let segment = try XCTUnwrap(segments.first)
+        let output = try RasterExporter.export(segment: segment,edit: PageEdit(),removeScrollbar: false,directory: root,outputDirectory: root.appendingPathComponent("out"),page: 0,progress: {_ in})
+        let image = try FrameImaging.load(output.output)
+        XCTAssertEqual(image.height,h+shift-crop.top-crop.bottom)
+        let data = try XCTUnwrap(image.dataProvider?.data) as Data
+        // Check every row, including both the seam and all 64/512-row strip boundaries.
+        for y in 0..<image.height {
+            XCTAssertEqual(data[y*image.bytesPerRow],source[(y+crop.top)*w],"Incorrect source row at \(y)")
+        }
+    }
     func testTallFixedHeaderCannotHideScrollingContent() throws {
         let root = temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let store = try SessionStore(root: root), pipeline = try CapturePipeline(store: store)
