@@ -2,6 +2,35 @@ import XCTest
 import ImageIO
 @testable import ScrollShotCore
 final class RenderTests: XCTestCase {
+    func testResidualFixedBarsDoNotRepeatAtInternalPNGSeams() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let w=40,h=100,source=fixture(width:40,height:160)
+        var records:[FrameRecord]=[]
+        for (i,offset) in [0,30,60].enumerated() {
+            let name="\(i).png",writer=try PNGWriter(url:root.appendingPathComponent(name),width:w,height:h)
+            var bytes=Data()
+            for y in 0..<h {for x in 0..<w {
+                let value:UInt8 = y<12 || y>=88 ? 0:source[(offset+y)*w+x]
+                bytes.append(contentsOf:[value,value,value,255])
+            }}
+            try writer.append(rgba:bytes,rowCount:h);try writer.finish()
+            records.append(FrameRecord(fileName:name,width:w,height:h,offsetY:offset,timestamp:Double(i)))
+        }
+        let crop=CropInsets(top:10,bottom:10)
+        let refined=try Refinement.records(records,directory:root,crop:crop,progress:{_ in})
+        XCTAssertEqual(refined.map(\.offsetY),[0,30,60])
+        XCTAssertNotNil(refined.last?.preferredSeamY)
+        let segments=try StitchPlanner.build(records:refined,crop:crop)
+        XCTAssertEqual(segments.count,1)
+        let output=try RasterExporter.export(segment:XCTUnwrap(segments.first),edit:PageEdit(),removeScrollbar:false,directory:root,outputDirectory:root.appendingPathComponent("out"),page:0,progress:{_ in})
+        let image=try FrameImaging.load(output.output),data=try XCTUnwrap(image.dataProvider?.data) as Data
+        XCTAssertEqual(image.height,140)
+        for y in 2..<(image.height-2) {
+            XCTAssertEqual((0..<w).map {data[y*image.bytesPerRow+$0*4]},Array(source[((y+10)*w)..<((y+11)*w)]),"Unexpected content at row \(y)")
+        }
+    }
     func testSixtyFourRowStripsKeepTheBoundaryPixel() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root,withIntermediateDirectories: true)

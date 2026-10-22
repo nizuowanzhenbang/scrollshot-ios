@@ -45,6 +45,7 @@ public enum Refinement {
         let imaging = FrameImaging()
         var result: [FrameRecord] = [], previousGray: GrayFrame?, previousInput: FrameRecord?
         var position = 0, scene = -1
+        var seams=SeamTracker()
         for (index,input) in records.enumerated() {
             try Task.checkCancellation()
             let gray: GrayFrame = try autoreleasepool {
@@ -56,6 +57,7 @@ public enum Refinement {
                 position += match.displacement
             } else { scene += 1; position = 0 }
             var record = input; record.offsetY = position; record.segment = scene
+            record.preferredSeamY=seams.preferredY(frame:gray,record:record,crop:crop)
             result.append(record); previousGray = gray; previousInput = input
             progress(Double(index+1)/Double(max(1,records.count)))
         }

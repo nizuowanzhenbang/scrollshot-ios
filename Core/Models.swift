@@ -18,6 +18,9 @@ public struct FrameRecord: Codable, Sendable, Equatable {
     public var offsetY: Int
     public var timestamp: Double
     public var segment: Int
+    /// Absolute document coordinate selected during refinement, never a crop.
+    /// Optional so drafts captured by earlier versions remain readable.
+    public var preferredSeamY: Int? = nil
     public init(fileName: String, width: Int, height: Int, offsetY: Int, timestamp: Double, segment: Int = 0) {
         self.fileName = fileName; self.width = width; self.height = height
         self.offsetY = offsetY; self.timestamp = timestamp; self.segment = segment

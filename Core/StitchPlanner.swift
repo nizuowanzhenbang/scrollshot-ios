@@ -1,5 +1,9 @@
 import Foundation
 public enum StitchPlanner {
+    static func seamY(start:Int,coverageEnd:Int,tailStart:Int,preferred:Int?)->Int {
+        let lower=max(start,tailStart),middle=lower+(coverageEnd-lower)/2
+        return min(coverageEnd,max(lower,preferred ?? middle))
+    }
     /// Used by both PNG export and fullscreen preview to share final boundaries.
     public static func pages(segments: [StitchSegment],outer: CropInsets) throws -> [StitchSegment] {
         try segments.flatMap {try split(trim($0,top: outer.top,bottom: outer.bottom))}
@@ -20,9 +24,20 @@ public enum StitchPlanner {
                 active = StitchSegment(width: r.width,height: 0,pieces: [])
             }
             if end > coverageEnd {
-                let source = max(crop.top,coverageEnd-r.offsetY)
-                let length = end-max(coverageEnd,start)
-                active?.pieces.append(ImagePiece(fileName: r.fileName,sourceY: source,height: length,destinationY: coverageEnd-base))
+                // Replace the overlapping tail instead of preserving each
+                // viewport all the way down to a possibly residual fixed bar.
+                let tailStart=base+(active?.pieces.last?.destinationY ?? 0)
+                let seam=seamY(start:start,coverageEnd:coverageEnd,tailStart:tailStart,preferred:r.preferredSeamY)
+                let cut = seam-base
+                while let last = active?.pieces.last,last.destinationY >= cut {active?.pieces.removeLast()}
+                if var last = active?.pieces.last,last.destinationY+last.height > cut {
+                    last.height = cut-last.destinationY
+                    let index = (active?.pieces.count ?? 0)-1
+                    active?.pieces[index] = last
+                }
+                let source = seam-r.offsetY
+                let length = end-seam
+                active?.pieces.append(ImagePiece(fileName: r.fileName,sourceY: source,height: length,destinationY: cut))
                 coverageEnd = end
                 active?.height = end-base
             }
