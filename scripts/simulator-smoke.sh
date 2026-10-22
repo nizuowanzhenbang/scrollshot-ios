@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-if ! xcodebuild -project ScrollShot.xcodeproj -scheme ScrollShotImport -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/simulator CODE_SIGNING_ALLOWED=NO build >build/simulator-build.log 2>&1; then tail -80 build/simulator-build.log; exit 1; fi
+if ! xcodebuild -project ScrollShot.xcodeproj -scheme ScrollShot -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/simulator CODE_SIGNING_ALLOWED=NO build >build/simulator-build.log 2>&1; then tail -80 build/simulator-build.log; exit 1; fi
 xcrun simctl list devices available -j >build/devices.json
 python3 - <<'PY'
 import json
@@ -14,8 +14,8 @@ udid="$(python3 -c 'import json;print(json.load(open("build/simulator-device.jso
 state="$(python3 -c 'import json;print(json.load(open("build/simulator-device.json"))["state"])')"
 if [ "$state" != Booted ]; then xcrun simctl boot "$udid"; fi
 xcrun simctl bootstatus "$udid" -b
-bundle=com.nizuowanzhenbang.scrollshot.import
-xcrun simctl install "$udid" build/simulator/Build/Products/Debug-iphonesimulator/ScrollShotImport.app
+bundle=com.nizuowanzhenbang.scrollshot
+xcrun simctl install "$udid" build/simulator/Build/Products/Debug-iphonesimulator/ScrollShot.app
 xcrun simctl launch "$udid" "$bundle" | tee build/simulator-launch.log
 sleep 3
 xcrun simctl io "$udid" screenshot build/home-screen.png
@@ -46,7 +46,7 @@ swift run FixtureGenerator "$container/Documents/Drafts" >build/fixture-ui-sessi
 # Seven drafts verify the latest-five home and all-drafts archive.
 for unused in 1 2 3 4 5; do swift run FixtureGenerator "$container/Documents/Drafts" >>build/fixture-ui-session.txt; done
 xcrun simctl privacy "$udid" grant photos-add "$bundle"
-if ! xcodebuild test -project ScrollShot.xcodeproj -scheme ScrollShotImport -destination "id=$udid" -derivedDataPath build/simulator -resultBundlePath build/ui-tests.xcresult -parallel-testing-enabled NO -only-testing:ScrollShotUITests/ResultFlowTests CODE_SIGNING_ALLOWED=NO >build/ui-test.log 2>&1; then
+if ! xcodebuild test -project ScrollShot.xcodeproj -scheme ScrollShot -destination "id=$udid" -derivedDataPath build/simulator -resultBundlePath build/ui-tests.xcresult -parallel-testing-enabled NO -only-testing:ScrollShotUITests/ResultFlowTests CODE_SIGNING_ALLOWED=NO >build/ui-test.log 2>&1; then
   xcrun xcresulttool export attachments --path build/ui-tests.xcresult --output-path build/ui-attachments >build/attachment-export.log 2>&1 || true
   tail -90 build/ui-test.log; exit 1
 fi

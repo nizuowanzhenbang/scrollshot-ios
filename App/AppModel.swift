@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import ScrollShotCore
 
 @MainActor final class AppModel: ObservableObject {
@@ -83,6 +84,38 @@ import ScrollShotCore
         } catch {message = error.localizedDescription;return false}
     }
     func cancel() { operation?.cancel() }
+    func copyImages(_ session: SessionManifest,completion: @escaping(Int)->Void) {
+        guard !busy,!savingPhotos else {return}
+        let urls = outputURLs(session)
+        guard !urls.isEmpty,urls.count == session.outputs.count else {
+            message = "长截图文件不完整，请重新生成后再复制。";return
+        }
+        busy = true;progress = 0;phase = "复制到剪贴板"
+        operation = Task {
+            // Transfer compressed PNG bytes directly. Decoding an entire long
+            // screenshot to UIImage would require much more working memory.
+            let worker = Task.detached(priority: .userInitiated) {
+                try urls.map {url -> Data in
+                    try Task.checkCancellation()
+                    let data = try Data(contentsOf: url,options: .mappedIfSafe)
+                    guard !data.isEmpty else {throw ScrollShotError.io("长截图文件为空，请重新生成后再复制。")}
+                    return data
+                }
+            }
+            defer {busy = false}
+            do {
+                let images = try await withTaskCancellationHandler(operation: {try await worker.value},onCancel: {worker.cancel()})
+                try Task.checkCancellation()
+                guard UIApplication.shared.applicationState == .active else {throw ScrollShotError.unavailable("请返回轻卷截图后再次复制。")}
+                // Commit all pages at once: a read failure leaves the user's
+                // previous clipboard intact instead of copying a partial result.
+                UIPasteboard.general.setItems(images.map {[UTType.png.identifier: $0]},options: [:])
+                progress = 1;completion(images.count)
+            } catch {
+                message = error is CancellationError ? "已取消复制，剪贴板内容未更改。":error.localizedDescription
+            }
+        }
+    }
     @discardableResult func saveTools(_ value:ToolPreferences)->Bool {
         do {try ToolPreferencesStore(root:store.root).save(value);toolPreferences=value;return true}
         catch {message=error.localizedDescription;return false}

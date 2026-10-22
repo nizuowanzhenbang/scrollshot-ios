@@ -8,6 +8,7 @@ struct LongScreenshotView: View {
     @State private var editing = false
     @State private var imageEditing=false
     @State private var compressRequested=false
+    @State private var copiedCount=0
     private struct Row: Identifiable {
         let id: String
         let width: Int
@@ -67,8 +68,29 @@ struct LongScreenshotView: View {
             }.foregroundStyle(.white).padding(.horizontal,18).padding(.top,10)
         }
         .overlay(alignment: .bottomTrailing) {
-            ImageSaveControl(session:current,compressRequested:$compressRequested).padding(20)
+            HStack(spacing:12) {
+                Button {
+                    copiedCount=0
+                    model.copyImages(current) {copiedCount=$0}
+                } label: {
+                    Label(copiedCount>0 ? "已复制":"复制",systemImage:copiedCount>0 ? "checkmark":"doc.on.doc")
+                        .font(.subheadline.bold()).padding(.horizontal,18).frame(height:54)
+                        .background(.regularMaterial,in:Capsule())
+                }
+                .disabled(model.busy || model.savingPhotos || current.outputs.isEmpty)
+                .accessibilityLabel("复制长截图到剪贴板").accessibilityIdentifier("result.copy")
+                .overlay(alignment:.topTrailing) {
+                    if copiedCount>0 {
+                        Text(copiedCount==1 ? "已复制到剪贴板":"已复制 \(copiedCount) 张图片")
+                            .font(.subheadline.bold()).fixedSize().padding(.horizontal,18).padding(.vertical,12)
+                            .background(.regularMaterial,in:Capsule()).offset(y:-62).accessibilityIdentifier("result.copied")
+                    }
+                }
+                ImageSaveControl(session:current,compressRequested:$compressRequested)
+            }.foregroundStyle(.white).padding(20)
         }
+        .task(id:copiedCount) {if copiedCount>0 {try? await Task.sleep(for:.seconds(3));if !Task.isCancelled {copiedCount=0}}}
+        .onChange(of:current.outputs) {_,_ in copiedCount=0}
         .onAppear {model.markResultPresented(session)}
         .sheet(isPresented: $editing) {NavigationStack {SessionView(session: current).environmentObject(model)}.foregroundStyle(.primary)}
         .sheet(isPresented:$imageEditing) {ImageEditorView(session:current).environmentObject(model).foregroundStyle(.primary)}

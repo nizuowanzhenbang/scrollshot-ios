@@ -2,16 +2,13 @@
 
 面向 iOS 18 的原生滚动长截图应用。目标手机是 iPhone 16 Pro / iOS 18.7.8；当前为 0.3.0 预览版。0.1.1 的实际采集已由用户确认，后续新功能仍需目标手机验收。
 
-## 两个安装包
+## 标准版安装包
 
-|版本|流程|签名条件|
-|---|---|---|
-|Standard|系统确认开始采集，切换到其他 App 滚动，停止后返回自动拼接|必须保留 Broadcast 扩展，主程序/扩展都要具有一致且获描述文件授权的 App Group|
-|Import|先用系统录屏，再从相册或文件导入，自动拼接|不包含扩展，不使用 App Groups|
+当前仅构建标准版（0.3.0 build 6），不再生成录屏导入版。系统确认开始采集后，切到其他 App 滚动，停止后返回自动拼接。
 
-CI 产生的 IPA 使用 ad-hoc 签名以保留包结构，**需要用有效证书重新签名才能安装到真实 iPhone**。它们不是 App Store 或 TestFlight 安装包。
+IPA 使用 ad-hoc 签名以保留包结构，需要用有效证书重新签名才能安装到真实 iPhone。签名时必须保留 Broadcast 扩展，主程序与扩展须具有一致且获描述文件授权的 App Group。详细签名要求见 [中文说明中的标准版部分](docs/全能签安装.md#标准版)。
 
-使用全能签时，若当前描述文件不能提供 App Groups，请使用 Import 版。具体操作见 [中文签名与使用说明](docs/全能签安装.md)。
+预览页右下角的“复制”将当前完整 PNG（包括已应用的裁剪、马赛克）写入剪贴板，分段时按顺序复制多张；接收应用可能只粘贴第一张。复制不会先将整张长图解码为位图，也不会写入相册。
 
 ## 0.1.1 签名兼容修复
 
@@ -61,7 +58,7 @@ bash scripts/build.sh
 bash scripts/simulator-smoke.sh
 ```
 
-输出位于 `build/ScrollShot-standard-0.3.0.ipa`、`build/ScrollShot-import-0.3.0.ipa`。`APP_GROUP_ID` 可在构建前设置，必须与实际签名授权一致。
+输出位于 `build/ScrollShot-standard-0.3.0.ipa`。`APP_GROUP_ID` 可在构建前设置，必须与实际签名授权一致。
 
 ## 结构
 

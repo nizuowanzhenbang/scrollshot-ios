@@ -9,8 +9,8 @@ python3 - "$GROUP" <<'PY'
 import plistlib,sys
 with open('build/group.entitlements','wb') as f: plistlib.dump({'com.apple.security.application-groups':[sys.argv[1]]},f)
 PY
-for scheme in ScrollShot ScrollShotImport; do
-  if [ "$scheme" = ScrollShot ]; then mode=standard; else mode=import; fi
+for scheme in ScrollShot; do
+  mode=standard
   if ! xcodebuild -project ScrollShot.xcodeproj -scheme "$scheme" -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "build/$mode" CODE_SIGNING_ALLOWED=NO "APP_GROUP_ID=$GROUP" build >"build/$mode-build.log" 2>&1; then
     tail -100 "build/$mode-build.log"; exit 1
   fi
@@ -18,16 +18,12 @@ for scheme in ScrollShot ScrollShotImport; do
   mkdir -p "$staging/Payload"
   cp -R "build/$mode/Build/Products/Release-iphoneos/$scheme.app" "$staging/Payload/"
   app="$staging/Payload/$scheme.app"
-  if [ "$mode" = standard ]; then
-    codesign --force --sign - --timestamp=none --entitlements build/group.entitlements "$app/PlugIns/BroadcastExtension.appex"
-    codesign --force --sign - --timestamp=none --entitlements build/group.entitlements "$app"
-  else
-    codesign --force --sign - --timestamp=none "$app"
-  fi
+  codesign --force --sign - --timestamp=none --entitlements build/group.entitlements "$app/PlugIns/BroadcastExtension.appex"
+  codesign --force --sign - --timestamp=none --entitlements build/group.entitlements "$app"
   codesign --verify --deep --strict "$app"
   version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Info.plist")"
   artifact="$PWD/build/ScrollShot-$mode-$version.ipa"
   (cd "$staging" && zip -qry "$artifact" Payload)
   python3 scripts/verify_ipa.py "$artifact" --mode "$mode" >"build/$mode-verification.json"
 done
-shasum -a 256 build/*.ipa >build/SHA256SUMS.txt
+shasum -a 256 build/ScrollShot-standard-*.ipa >build/SHA256SUMS.txt

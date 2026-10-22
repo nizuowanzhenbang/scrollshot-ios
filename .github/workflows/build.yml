@@ -52,9 +52,9 @@ jobs:
         with:
           name: ios-build
           path: |
-            build/*.ipa
-            build/*-verification.json
-            build/*-build.log
+            build/ScrollShot-standard-*.ipa
+            build/standard-verification.json
+            build/standard-build.log
             build/SHA256SUMS.txt
           retention-days: 3
       - name: Simulator smoke test
